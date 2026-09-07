@@ -10,14 +10,7 @@ object EditorFormatter {
         else -> content
     }
 
-    private fun formatDelimited(
-        content: String,
-        openObject: Char,
-        closeObject: Char,
-        openArray: Char,
-        closeArray: Char,
-        separator: Char
-    ): String {
+    private fun formatDelimited(content: String, openObject: Char, closeObject: Char, openArray: Char, closeArray: Char, separator: Char): String {
         val compact = content.trim()
         if (compact.isEmpty()) return content
         val result = StringBuilder()
@@ -42,27 +35,10 @@ object EditorFormatter {
             }
             when (char) {
                 '"' -> { inString = true; result.append(char); pendingSpace = false }
-                openObject, openArray -> {
-                    result.append(char)
-                    indent++
-                    newline()
-                    pendingSpace = false
-                }
-                closeObject, closeArray -> {
-                    indent = (indent - 1).coerceAtLeast(0)
-                    newline()
-                    result.append(char)
-                    pendingSpace = false
-                }
-                separator -> {
-                    result.append(char)
-                    newline()
-                    pendingSpace = false
-                }
-                ':' -> {
-                    result.append(": ")
-                    pendingSpace = false
-                }
+                openObject, openArray -> { result.append(char); indent++; newline(); pendingSpace = false }
+                closeObject, closeArray -> { indent = (indent - 1).coerceAtLeast(0); newline(); result.append(char); pendingSpace = false }
+                separator -> { result.append(char); newline(); pendingSpace = false }
+                ':' -> { result.append(": "); pendingSpace = false }
                 '\n', '\r', '\t', ' ' -> pendingSpace = true
                 else -> {
                     if (pendingSpace && result.isNotEmpty() && result.last() != '\n' && result.last() != ' ') result.append(' ')
@@ -81,14 +57,26 @@ object EditorFormatter {
         if (tokens.isEmpty()) return content
         val result = StringBuilder()
         var indent = 0
+        var openTagOnCurrentLine = false
+
         for (token in tokens) {
             val closing = token.startsWith("</")
             val selfClosing = token.endsWith("/>") || token.startsWith("<!") || token.startsWith("<?")
+            val textToken = !token.startsWith("<")
+
+            if (textToken && openTagOnCurrentLine) {
+                result.append(token)
+                openTagOnCurrentLine = false
+                continue
+            }
+
             if (closing) indent = (indent - 1).coerceAtLeast(0)
             if (result.isNotEmpty()) result.append('\n')
             repeat(indent) { result.append("    ") }
             result.append(token)
-            if (token.startsWith("<") && !closing && !selfClosing && !token.contains("</")) indent++
+
+            openTagOnCurrentLine = token.startsWith("<") && !closing && !selfClosing
+            if (openTagOnCurrentLine) indent++
         }
         return result.toString()
     }
