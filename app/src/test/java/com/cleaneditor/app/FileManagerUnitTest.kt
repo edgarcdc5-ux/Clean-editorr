@@ -15,6 +15,6 @@ class FileManagerUnitTest {
         assertFalse(FileManagerRepository.validateName("").isSuccess)
         assertFalse(FileManagerRepository.validateName("../arquivo.txt").isSuccess)
         assertFalse(FileManagerRepository.validateName("pasta/arquivo.txt").isSuccess)
-        assertFalse(FileManagerRepository.validateName("..\").isSuccess)
+        assertFalse(FileManagerRepository.validateName("pasta" + "\\" + "arquivo.txt").isSuccess)
     }
 }
