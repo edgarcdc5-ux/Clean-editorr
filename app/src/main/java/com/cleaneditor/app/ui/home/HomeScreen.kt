@@ -1,7 +1,6 @@
 package com.cleaneditor.app.ui.home
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,7 +27,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -46,229 +44,70 @@ import com.cleaneditor.app.ui.shared.CleanEditorHeader
 @Composable
 fun HomeScreen(
     onNavigateTo: (NavigationDestination) -> Unit,
+    onOpenEditor: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .testTag("screen_home"),
+        modifier = modifier.fillMaxSize().testTag("screen_home"),
         contentPadding = PaddingValues(bottom = 32.dp)
     ) {
         item {
-            CleanEditorHeader(
-                title = stringResource(R.string.app_name),
-                subtitle = stringResource(R.string.home_tagline)
-            )
+            CleanEditorHeader(title = stringResource(R.string.app_name), subtitle = stringResource(R.string.home_tagline))
         }
-
         item {
-            // Welcome Hero Card
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
-                    .testTag("card_welcome_hero"),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp).testTag("card_welcome_hero"),
                 shape = MaterialTheme.shapes.large,
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                ),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.badge_phase1),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        Text(
-                            text = "•",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        Text(
-                            text = stringResource(R.string.badge_ready),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = stringResource(R.string.home_welcome_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text(
-                        text = stringResource(R.string.home_welcome_subtitle),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+                    Text(stringResource(R.string.badge_phase1), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(12.dp))
+                    Text(stringResource(R.string.home_welcome_title), style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(6.dp))
+                    Text(stringResource(R.string.home_welcome_subtitle), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
-
         item {
-            Text(
-                text = stringResource(R.string.section_quick_access),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp)
-            )
+            Text(stringResource(R.string.section_quick_access), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 12.dp))
         }
-
-        // Module cards
         item {
-            ModuleFeatureCard(
-                icon = Icons.Filled.EditNote,
-                title = stringResource(R.string.module_editor_name),
-                description = stringResource(R.string.module_editor_desc),
-                phaseNote = "Fase 2 • Próxima etapa",
-                onClick = { /* Will open editor in Phase 2 */ },
-                testTag = "card_module_editor"
-            )
+            ModuleFeatureCard(Icons.Filled.EditNote, stringResource(R.string.module_editor_name), stringResource(R.string.module_editor_desc), "Editor de texto", onOpenEditor, "card_module_editor")
         }
-
         item {
-            ModuleFeatureCard(
-                icon = Icons.Filled.Folder,
-                title = stringResource(R.string.module_files_name),
-                description = stringResource(R.string.module_files_desc),
-                phaseNote = "Acessar visualização de arquivos",
-                onClick = { onNavigateTo(NavigationDestination.Files) },
-                testTag = "card_module_files"
-            )
+            ModuleFeatureCard(Icons.Filled.Folder, stringResource(R.string.module_files_name), stringResource(R.string.module_files_desc), "Acessar arquivos", { onNavigateTo(NavigationDestination.Files) }, "card_module_files")
         }
-
         item {
-            ModuleFeatureCard(
-                icon = Icons.Filled.CheckCircle,
-                title = stringResource(R.string.module_reminders_name),
-                description = stringResource(R.string.module_reminders_desc),
-                phaseNote = "Acessar visualização de lembretes",
-                onClick = { onNavigateTo(NavigationDestination.Reminders) },
-                testTag = "card_module_reminders"
-            )
+            ModuleFeatureCard(Icons.Filled.CheckCircle, stringResource(R.string.module_reminders_name), stringResource(R.string.module_reminders_desc), "Acessar lembretes", { onNavigateTo(NavigationDestination.Reminders) }, "card_module_reminders")
         }
-
         item {
-            ModuleFeatureCard(
-                icon = Icons.Filled.AutoAwesome,
-                title = stringResource(R.string.module_ai_name),
-                description = stringResource(R.string.module_ai_desc),
-                phaseNote = "Acessar assistente inteligente",
-                onClick = { onNavigateTo(NavigationDestination.Ai) },
-                testTag = "card_module_ai"
-            )
+            ModuleFeatureCard(Icons.Filled.AutoAwesome, stringResource(R.string.module_ai_name), stringResource(R.string.module_ai_desc), "Acessar IA", { onNavigateTo(NavigationDestination.Ai) }, "card_module_ai")
         }
     }
 }
 
 @Composable
-private fun ModuleFeatureCard(
-    icon: ImageVector,
-    title: String,
-    description: String,
-    phaseNote: String,
-    onClick: () -> Unit,
-    testTag: String
-) {
+private fun ModuleFeatureCard(icon: ImageVector, title: String, description: String, phaseNote: String, onClick: () -> Unit, testTag: String) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 6.dp)
-            .testTag(testTag)
-            .clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp).testTag(testTag).clickable(onClick = onClick),
         shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-        )
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
+        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
             }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = phaseNote,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(2.dp))
+                Text(description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(4.dp))
+                Text(phaseNote, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
             }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(20.dp)
-            )
+            Spacer(Modifier.width(8.dp))
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), modifier = Modifier.size(20.dp))
         }
     }
 }
