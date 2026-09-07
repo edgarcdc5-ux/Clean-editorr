@@ -23,6 +23,9 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.ContentDuplicate
+import androidx.compose.material.icons.filled.FormatIndentDecrease
+import androidx.compose.material.icons.filled.FormatIndentIncrease
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -204,6 +207,10 @@ fun EditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier, initialFile:
                     IconButton(onClick = { val a=value.selection.min; val b=value.selection.max; if (a != b) { clipboard.setText(AnnotatedString(value.text.substring(a,b))); setEditorValue(value.copy(text=value.text.removeRange(a,b), selection=TextRange(a))) } }, modifier = Modifier.testTag("btn_editor_cut")) { Icon(Icons.Filled.ContentCut, "Recortar") }
                     IconButton(onClick = { val pasted=clipboard.getText()?.text ?: return@IconButton; val a=value.selection.min; val b=value.selection.max; setEditorValue(value.copy(text=value.text.replaceRange(a,b,pasted), selection=TextRange(a+pasted.length))) }, modifier = Modifier.testTag("btn_editor_paste")) { Icon(Icons.Filled.ContentPaste, "Colar") }
                     IconButton(onClick = { setEditorValue(value.copy(selection=TextRange(0,value.text.length)), false) }, modifier = Modifier.testTag("btn_editor_select_all")) { Icon(Icons.Filled.SelectAll, "Selecionar tudo") }
+                    IconButton(onClick = { setEditorValue(EditorLineOperations.selectCurrentLine(value)) }, modifier = Modifier.testTag("btn_editor_select_line")) { Icon(Icons.Filled.SelectAll, "Selecionar linha") }
+                    IconButton(onClick = { setEditorValue(EditorLineOperations.indent(value)) }, modifier = Modifier.testTag("btn_editor_indent")) { Icon(Icons.Filled.FormatIndentIncrease, "Aumentar indentação") }
+                    IconButton(onClick = { setEditorValue(EditorLineOperations.outdent(value)) }, modifier = Modifier.testTag("btn_editor_outdent")) { Icon(Icons.Filled.FormatIndentDecrease, "Diminuir indentação") }
+                    IconButton(onClick = { setEditorValue(EditorLineOperations.duplicateCurrentLine(value)) }, modifier = Modifier.testTag("btn_editor_duplicate_line")) { Icon(Icons.Filled.ContentDuplicate, "Duplicar linha") }
                     IconButton(onClick = { searchVisible=!searchVisible }, modifier = Modifier.testTag("btn_editor_search")) { Icon(Icons.Filled.Search, "Pesquisar") }
                 }
             } }
