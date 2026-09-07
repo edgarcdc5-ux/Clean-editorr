@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.cleaneditor.app.data.model.FileItem
 import com.cleaneditor.app.navigation.NavigationDestination
 import com.cleaneditor.app.theme.AppThemeSetting
 import com.cleaneditor.app.theme.CleanEditorTheme
@@ -43,10 +44,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             var themeSetting by remember { mutableStateOf(AppThemeSetting.DARK) }
             CleanEditorTheme(themeSetting = themeSetting) {
-                CleanEditorApp(
-                    currentTheme = themeSetting,
-                    onThemeChange = { themeSetting = it }
-                )
+                CleanEditorApp(currentTheme = themeSetting, onThemeChange = { themeSetting = it })
             }
         }
     }
@@ -60,13 +58,14 @@ fun CleanEditorApp(
 ) {
     var activeDestination by remember { mutableStateOf<NavigationDestination>(NavigationDestination.Home) }
     var editorOpen by remember { mutableStateOf(false) }
+    var selectedFile by remember { mutableStateOf<FileItem?>(null) }
 
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
+    Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         if (editorOpen) {
-            EditorScreen(onBack = { editorOpen = false })
+            EditorScreen(
+                onBack = { editorOpen = false; selectedFile = null },
+                initialFile = selectedFile
+            )
         } else {
             Scaffold(
                 modifier = Modifier.fillMaxSize().statusBarsPadding(),
@@ -81,19 +80,18 @@ fun CleanEditorApp(
                     when (activeDestination) {
                         NavigationDestination.Home -> HomeScreen(
                             onNavigateTo = { destination ->
-                                if (destination == NavigationDestination.Editor) editorOpen = true
+                                if (destination == NavigationDestination.Editor) { selectedFile = null; editorOpen = true }
                                 else activeDestination = destination
                             },
-                            onOpenEditor = { editorOpen = true }
+                            onOpenEditor = { selectedFile = null; editorOpen = true }
                         )
-                        NavigationDestination.Files -> FilesScreen()
+                        NavigationDestination.Files -> FilesScreen(
+                            onOpenFile = { file -> selectedFile = file; editorOpen = true }
+                        )
                         NavigationDestination.Reminders -> RemindersScreen()
                         NavigationDestination.Ai -> AiScreen()
-                        NavigationDestination.Settings -> SettingsScreen(
-                            currentTheme = currentTheme,
-                            onThemeChange = onThemeChange
-                        )
-                        NavigationDestination.Editor -> editorOpen = true
+                        NavigationDestination.Settings -> SettingsScreen(currentTheme = currentTheme, onThemeChange = onThemeChange)
+                        NavigationDestination.Editor -> { selectedFile = null; editorOpen = true }
                     }
                 }
             }
@@ -117,15 +115,8 @@ private fun CleanEditorBottomBar(
                 modifier = Modifier.testTag(destination.testTag),
                 selected = isSelected,
                 onClick = { onDestinationSelected(destination) },
-                icon = {
-                    Icon(
-                        imageVector = if (isSelected) destination.selectedIcon else destination.unselectedIcon,
-                        contentDescription = stringResource(destination.labelRes)
-                    )
-                },
-                label = {
-                    Text(text = stringResource(destination.labelRes), style = MaterialTheme.typography.labelSmall)
-                },
+                icon = { Icon(if (isSelected) destination.selectedIcon else destination.unselectedIcon, stringResource(destination.labelRes)) },
+                label = { Text(stringResource(destination.labelRes), style = MaterialTheme.typography.labelSmall) },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.primary,
                     selectedTextColor = MaterialTheme.colorScheme.primary,
