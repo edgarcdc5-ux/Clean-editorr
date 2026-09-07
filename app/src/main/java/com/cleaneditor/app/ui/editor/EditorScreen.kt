@@ -69,8 +69,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.cleaneditor.app.data.model.EditorFileType
 import com.cleaneditor.app.data.model.FileItem
 import kotlinx.coroutines.Dispatchers
@@ -145,6 +147,7 @@ fun EditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier, initialFile:
     val lastBreak = value.text.lastIndexOf('\n', value.selection.start.coerceAtLeast(0) - 1)
     val column = value.selection.start - lastBreak
     val lines = if (value.text.isEmpty()) 1 else value.text.count { it == '\n' } + 1
+    val editorTextStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace, fontSize = 15.sp)
 
     if (showDiscardDialog) AlertDialog(onDismissRequest = { showDiscardDialog = false; pendingAction = null }, title = { Text("Descartar alterações?") }, text = { Text("Existem alterações não salvas em $currentFileName.") }, confirmButton = { TextButton(onClick = { showDiscardDialog = false; val action = pendingAction; pendingAction = null; action?.invoke() }, modifier = Modifier.testTag("dialog_btn_discard")) { Text("Descartar") } }, dismissButton = { TextButton(onClick = { showDiscardDialog = false; pendingAction = null }, modifier = Modifier.testTag("dialog_btn_cancel")) { Text("Cancelar") } }, modifier = Modifier.testTag("dialog_discard_changes"))
 
@@ -171,7 +174,36 @@ fun EditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier, initialFile:
                 }
             } }
             if (searchVisible) Row(Modifier.fillMaxWidth().padding(horizontal=12.dp, vertical=8.dp), verticalAlignment=Alignment.CenterVertically) { OutlinedTextField(value=searchQuery, onValueChange={ searchQuery=it; searchIndex=0 }, modifier=Modifier.weight(1f).testTag("editor_search_input"), singleLine=true, label={ Text("Pesquisar") }); Spacer(Modifier.width(4.dp)); Text("$occurrences"); IconButton(onClick={ moveSearch(-1) }) { Icon(Icons.Filled.KeyboardArrowUp,"Anterior") }; IconButton(onClick={ moveSearch(1) }) { Icon(Icons.Filled.KeyboardArrowDown,"Próximo") } }
-            BasicTextField(value=value, onValueChange={ setEditorValue(EditorInputHandler.handle(value, it)) }, modifier=Modifier.fillMaxWidth().weight(1f).padding(16.dp).onKeyEvent { event -> if (event.type != KeyEventType.KeyDown) return@onKeyEvent false; when { event.key == Key.Tab && event.isShiftPressed -> { outdentLine(); true }; event.key == Key.Tab -> { indentLine(); true }; event.key == Key.D && event.isCtrlPressed -> { duplicateLine(); true }; else -> false } }.testTag("editor_text_field"), textStyle=MaterialTheme.typography.bodyLarge.copy(color=MaterialTheme.colorScheme.onBackground), cursorBrush=SolidColor(MaterialTheme.colorScheme.primary), visualTransformation=SyntaxHighlighter.visualTransformation(editorFileType), decorationBox={ inner -> Surface(tonalElevation=1.dp, modifier=Modifier.fillMaxSize()) { Column(Modifier.padding(12.dp)) { inner() } } })
+
+            Surface(modifier = Modifier.fillMaxWidth().weight(1f).padding(16.dp), tonalElevation = 1.dp) {
+                Row(Modifier.fillMaxSize()) {
+                    Column(Modifier.width(48.dp).padding(top = 12.dp), horizontalAlignment = Alignment.End) {
+                        repeat(lines) { index ->
+                            val number = index + 1
+                            Surface(
+                                color = if (number == line) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                                modifier = Modifier.fillMaxWidth().testTag(if (number == line) "editor_current_line_number" else "editor_line_number_$number")
+                            ) {
+                                Text(
+                                    text = number.toString(),
+                                    modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                                    style = editorTextStyle.copy(color = if (number == line) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+                                )
+                            }
+                        }
+                    }
+                    BasicTextField(
+                        value=value,
+                        onValueChange={ setEditorValue(EditorInputHandler.handle(value, it)) },
+                        modifier=Modifier.fillMaxWidth().weight(1f).padding(12.dp).onKeyEvent { event -> if (event.type != KeyEventType.KeyDown) return@onKeyEvent false; when { event.key == Key.Tab && event.isShiftPressed -> { outdentLine(); true }; event.key == Key.Tab -> { indentLine(); true }; event.key == Key.D && event.isCtrlPressed -> { duplicateLine(); true }; event.key == Key.Home -> { value = EditorNavigation.moveLineStart(value, event.isShiftPressed); true }; event.key == Key.End -> { value = EditorNavigation.moveLineEnd(value, event.isShiftPressed); true }; event.key == Key.PageUp && event.isCtrlPressed -> { value = EditorNavigation.moveDocumentStart(value, event.isShiftPressed); true }; event.key == Key.PageDown && event.isCtrlPressed -> { value = EditorNavigation.moveDocumentEnd(value, event.isShiftPressed); true }; else -> false } }.testTag("editor_text_field"),
+                        textStyle=editorTextStyle.copy(color=MaterialTheme.colorScheme.onBackground),
+                        cursorBrush=SolidColor(MaterialTheme.colorScheme.primary),
+                        visualTransformation=SyntaxHighlighter.visualTransformation(editorFileType),
+                        decorationBox={ inner -> Column(Modifier.fillMaxSize()) { inner() } }
+                    )
+                }
+            }
             Row(Modifier.fillMaxWidth().padding(horizontal=12.dp, vertical=6.dp), horizontalArrangement=Arrangement.SpaceBetween) { Text("$lines linhas • ${value.text.length} caracteres", style=MaterialTheme.typography.labelSmall); Text("Ln $line, Col $column", style=MaterialTheme.typography.labelSmall) }
         }
     }
