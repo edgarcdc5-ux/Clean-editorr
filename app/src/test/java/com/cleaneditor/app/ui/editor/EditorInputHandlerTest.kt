@@ -22,10 +22,10 @@ class EditorInputHandlerTest {
 
     @Test
     fun enterCopiesBaseIndentAndAddsIndentAfterBrace() {
-        val old = TextFieldValue("    {", TextRange(6))
+        val old = TextFieldValue("    {", TextRange(5))
         val incoming = TextFieldValue("    {\n", TextRange(6))
         val result = EditorInputHandler.handle(old, incoming)
         assertEquals("    {\n        ", result.text)
-        assertEquals(11, result.selection.start)
+        assertEquals(14, result.selection.start)
     }
 }
