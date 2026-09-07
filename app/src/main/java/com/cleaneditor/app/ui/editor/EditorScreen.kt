@@ -22,11 +22,11 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
-import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.ContentDuplicate
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.FormatIndentDecrease
 import androidx.compose.material.icons.filled.FormatIndentIncrease
-import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Redo
@@ -57,6 +57,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -76,12 +83,7 @@ import java.io.InputStreamReader
 
 private fun queryFileName(context: Context, uri: Uri): String {
     var name = "Sem título.txt"
-    try {
-        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (index >= 0 && cursor.moveToFirst()) cursor.getString(index)?.takeIf { it.isNotBlank() }?.let { name = it }
-        }
-    } catch (_: Exception) { }
+    try { context.contentResolver.query(uri, null, null, null, null)?.use { cursor -> val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME); if (index >= 0 && cursor.moveToFirst()) cursor.getString(index)?.takeIf { it.isNotBlank() }?.let { name = it } } } catch (_: Exception) { }
     return name
 }
 
@@ -108,78 +110,35 @@ fun EditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier, initialFile:
 
     fun setEditorValue(newValue: TextFieldValue, history: Boolean = true) {
         if (newValue == value) return
-        if (history) {
-            undoStack.add(value)
-            if (undoStack.size > 100) undoStack.removeAt(0)
-            redoStack.clear()
-        }
+        if (history) { undoStack.add(value); if (undoStack.size > 100) undoStack.removeAt(0); redoStack.clear() }
         value = newValue
     }
-
     fun guarded(action: () -> Unit) { if (isModified) { pendingAction = action; showDiscardDialog = true } else action() }
-    fun resetNew() {
-        currentUri = null; currentInternalFile = null; currentFileName = "Sem título.txt"; savedText = ""
-        setEditorValue(TextFieldValue(""), false); undoStack.clear(); redoStack.clear()
-    }
+    fun resetNew() { currentUri = null; currentInternalFile = null; currentFileName = "Sem título.txt"; savedText = ""; setEditorValue(TextFieldValue(""), false); undoStack.clear(); redoStack.clear() }
     BackHandler { guarded(onBack) }
 
     LaunchedEffect(initialFile?.path) {
         val file = initialFile?.file ?: return@LaunchedEffect
-        try {
-            val content = withContext(Dispatchers.IO) { file.readText(Charsets.UTF_8) }
-            currentInternalFile = file; currentUri = null; currentFileName = file.name; savedText = content
-            setEditorValue(TextFieldValue(content), false); undoStack.clear(); redoStack.clear()
-        } catch (e: Exception) { snackbarHostState.showSnackbar("Erro ao abrir arquivo: ${e.localizedMessage ?: "falha de leitura"}") }
+        try { val content = withContext(Dispatchers.IO) { file.readText(Charsets.UTF_8) }; currentInternalFile = file; currentUri = null; currentFileName = file.name; savedText = content; setEditorValue(TextFieldValue(content), false); undoStack.clear(); redoStack.clear() }
+        catch (e: Exception) { snackbarHostState.showSnackbar("Erro ao abrir arquivo: ${e.localizedMessage ?: "falha de leitura"}") }
     }
 
     val createDocumentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri: Uri? ->
         uri ?: return@rememberLauncherForActivityResult
-        scope.launch {
-            try {
-                withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(value.text.toByteArray(Charsets.UTF_8)) } ?: throw IOException("Não foi possível acessar o destino.") }
-                currentUri = uri; currentInternalFile = null; currentFileName = withContext(Dispatchers.IO) { queryFileName(context, uri) }; savedText = value.text
-                snackbarHostState.showSnackbar("Arquivo salvo: $currentFileName")
-            } catch (e: SecurityException) { snackbarHostState.showSnackbar("Permissão negada ao salvar arquivo") }
-            catch (e: IOException) { snackbarHostState.showSnackbar("Erro de gravação: ${e.localizedMessage ?: "falha"}") }
-            catch (_: Exception) { snackbarHostState.showSnackbar("Erro inesperado ao salvar arquivo") }
-        }
+        scope.launch { try { withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(value.text.toByteArray(Charsets.UTF_8)) } ?: throw IOException("Não foi possível acessar o destino.") }; currentUri = uri; currentInternalFile = null; currentFileName = withContext(Dispatchers.IO) { queryFileName(context, uri) }; savedText = value.text; snackbarHostState.showSnackbar("Arquivo salvo: $currentFileName") } catch (e: SecurityException) { snackbarHostState.showSnackbar("Permissão negada ao salvar arquivo") } catch (e: IOException) { snackbarHostState.showSnackbar("Erro de gravação: ${e.localizedMessage ?: "falha"}") } catch (_: Exception) { snackbarHostState.showSnackbar("Erro inesperado ao salvar arquivo") } }
     }
-
     val openDocumentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         uri ?: return@rememberLauncherForActivityResult
-        scope.launch {
-            try {
-                val content = withContext(Dispatchers.IO) { context.contentResolver.openInputStream(uri)?.use { input -> BufferedReader(InputStreamReader(input, Charsets.UTF_8)).use { it.readText() } } ?: throw IOException("Não foi possível acessar o arquivo.") }
-                currentUri = uri; currentInternalFile = null; currentFileName = withContext(Dispatchers.IO) { queryFileName(context, uri) }; savedText = content
-                setEditorValue(TextFieldValue(content), false); undoStack.clear(); redoStack.clear(); snackbarHostState.showSnackbar("Arquivo aberto: $currentFileName")
-            } catch (e: SecurityException) { snackbarHostState.showSnackbar("Permissão negada ao abrir arquivo") }
-            catch (e: IOException) { snackbarHostState.showSnackbar("Erro de leitura: ${e.localizedMessage ?: "falha"}") }
-            catch (_: Exception) { snackbarHostState.showSnackbar("Erro inesperado ao abrir arquivo") }
-        }
+        scope.launch { try { val content = withContext(Dispatchers.IO) { context.contentResolver.openInputStream(uri)?.use { input -> BufferedReader(InputStreamReader(input, Charsets.UTF_8)).use { it.readText() } } ?: throw IOException("Não foi possível acessar o arquivo.") }; currentUri = uri; currentInternalFile = null; currentFileName = withContext(Dispatchers.IO) { queryFileName(context, uri) }; savedText = content; setEditorValue(TextFieldValue(content), false); undoStack.clear(); redoStack.clear(); snackbarHostState.showSnackbar("Arquivo aberto: $currentFileName") } catch (e: SecurityException) { snackbarHostState.showSnackbar("Permissão negada ao abrir arquivo") } catch (e: IOException) { snackbarHostState.showSnackbar("Erro de leitura: ${e.localizedMessage ?: "falha"}") } catch (_: Exception) { snackbarHostState.showSnackbar("Erro inesperado ao abrir arquivo") } }
     }
-
     fun saveDirectly() {
         val internal = currentInternalFile; val uri = currentUri
-        scope.launch {
-            try {
-                withContext(Dispatchers.IO) {
-                    when { internal != null -> internal.writeText(value.text, Charsets.UTF_8); uri != null -> context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(value.text.toByteArray(Charsets.UTF_8)) } ?: throw IOException("Não foi possível salvar o arquivo."); else -> throw IllegalStateException("NO_DESTINATION") }
-                }
-                savedText = value.text; snackbarHostState.showSnackbar("Arquivo salvo: $currentFileName")
-            } catch (e: IllegalStateException) { if (e.message == "NO_DESTINATION") createDocumentLauncher.launch(currentFileName) else snackbarHostState.showSnackbar("Erro ao salvar arquivo") }
-            catch (e: SecurityException) { snackbarHostState.showSnackbar("Permissão negada ao salvar arquivo") }
-            catch (e: IOException) { snackbarHostState.showSnackbar("Erro de gravação: ${e.localizedMessage ?: "falha"}") }
-            catch (_: Exception) { snackbarHostState.showSnackbar("Erro inesperado ao salvar arquivo") }
-        }
+        scope.launch { try { withContext(Dispatchers.IO) { when { internal != null -> internal.writeText(value.text, Charsets.UTF_8); uri != null -> context.contentResolver.openOutputStream(uri, "wt")?.use { it.write(value.text.toByteArray(Charsets.UTF_8)) } ?: throw IOException("Não foi possível salvar o arquivo."); else -> throw IllegalStateException("NO_DESTINATION") } }; savedText = value.text; snackbarHostState.showSnackbar("Arquivo salvo: $currentFileName") } catch (e: IllegalStateException) { if (e.message == "NO_DESTINATION") createDocumentLauncher.launch(currentFileName) else snackbarHostState.showSnackbar("Erro ao salvar arquivo") } catch (e: SecurityException) { snackbarHostState.showSnackbar("Permissão negada ao salvar arquivo") } catch (e: IOException) { snackbarHostState.showSnackbar("Erro de gravação: ${e.localizedMessage ?: "falha"}") } catch (_: Exception) { snackbarHostState.showSnackbar("Erro inesperado ao salvar arquivo") } }
     }
-
-    fun moveSearch(direction: Int) {
-        if (searchQuery.isBlank()) return
-        val starts = buildList { var start = 0; while (start < value.text.length) { val found = value.text.indexOf(searchQuery, start, ignoreCase = true); if (found < 0) break; add(found); start = found + maxOf(1, searchQuery.length) } }
-        if (starts.isEmpty()) return
-        searchIndex = (searchIndex + direction).mod(starts.size); val start = starts[searchIndex]
-        setEditorValue(value.copy(selection = TextRange(start, start + searchQuery.length)), false)
-    }
+    fun moveSearch(direction: Int) { if (searchQuery.isBlank()) return; val starts = buildList { var start = 0; while (start < value.text.length) { val found = value.text.indexOf(searchQuery, start, ignoreCase = true); if (found < 0) break; add(found); start = found + maxOf(1, searchQuery.length) } }; if (starts.isEmpty()) return; searchIndex = (searchIndex + direction).mod(starts.size); val start = starts[searchIndex]; setEditorValue(value.copy(selection = TextRange(start, start + searchQuery.length)), false) }
+    fun duplicateLine() = setEditorValue(EditorLineOperations.duplicateCurrentLine(value))
+    fun indentLine() = setEditorValue(EditorLineOperations.indent(value))
+    fun outdentLine() = setEditorValue(EditorLineOperations.outdent(value))
 
     val occurrences = remember(value.text, searchQuery) { if (searchQuery.isBlank()) 0 else value.text.windowed(searchQuery.length, 1, false).count { it.equals(searchQuery, true) } }
     val line = value.text.take(value.selection.start).count { it == '\n' } + 1
@@ -192,10 +151,7 @@ fun EditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier, initialFile:
     Scaffold(modifier = modifier.fillMaxSize().testTag("screen_editor"), snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             Surface(shadowElevation = 2.dp) { Column {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { guarded(onBack) }, modifier = Modifier.testTag("btn_editor_back")) { Icon(Icons.Filled.ArrowBack, "Voltar") }
-                    Column(Modifier.weight(1f)) { Text(currentFileName + if (isModified) " •" else "", style = MaterialTheme.typography.titleMedium); Text(if (isModified) "Documento modificado" else if (currentUri != null || currentInternalFile != null) "Salvo no dispositivo" else "Documento não salvo", style = MaterialTheme.typography.labelSmall) }
-                }
+                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = { guarded(onBack) }, modifier = Modifier.testTag("btn_editor_back")) { Icon(Icons.Filled.ArrowBack, "Voltar") }; Column(Modifier.weight(1f)) { Text(currentFileName + if (isModified) " •" else "", style = MaterialTheme.typography.titleMedium); Text(if (isModified) "Documento modificado" else if (currentUri != null || currentInternalFile != null) "Salvo no dispositivo" else "Documento não salvo", style = MaterialTheme.typography.labelSmall) } }
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     IconButton(onClick = { guarded { resetNew() } }, modifier = Modifier.testTag("btn_editor_new")) { Icon(Icons.Filled.Add, "Novo") }
                     IconButton(onClick = { guarded { openDocumentLauncher.launch(arrayOf("text/*", "application/json", "application/xml", "*/*")) } }, modifier = Modifier.testTag("btn_editor_open")) { Icon(Icons.Filled.FolderOpen, "Abrir") }
@@ -207,18 +163,15 @@ fun EditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier, initialFile:
                     IconButton(onClick = { val a=value.selection.min; val b=value.selection.max; if (a != b) { clipboard.setText(AnnotatedString(value.text.substring(a,b))); setEditorValue(value.copy(text=value.text.removeRange(a,b), selection=TextRange(a))) } }, modifier = Modifier.testTag("btn_editor_cut")) { Icon(Icons.Filled.ContentCut, "Recortar") }
                     IconButton(onClick = { val pasted=clipboard.getText()?.text ?: return@IconButton; val a=value.selection.min; val b=value.selection.max; setEditorValue(value.copy(text=value.text.replaceRange(a,b,pasted), selection=TextRange(a+pasted.length))) }, modifier = Modifier.testTag("btn_editor_paste")) { Icon(Icons.Filled.ContentPaste, "Colar") }
                     IconButton(onClick = { setEditorValue(value.copy(selection=TextRange(0,value.text.length)), false) }, modifier = Modifier.testTag("btn_editor_select_all")) { Icon(Icons.Filled.SelectAll, "Selecionar tudo") }
-                    IconButton(onClick = { setEditorValue(EditorLineOperations.selectCurrentLine(value)) }, modifier = Modifier.testTag("btn_editor_select_line")) { Icon(Icons.Filled.SelectAll, "Selecionar linha") }
-                    IconButton(onClick = { setEditorValue(EditorLineOperations.indent(value)) }, modifier = Modifier.testTag("btn_editor_indent")) { Icon(Icons.Filled.FormatIndentIncrease, "Aumentar indentação") }
-                    IconButton(onClick = { setEditorValue(EditorLineOperations.outdent(value)) }, modifier = Modifier.testTag("btn_editor_outdent")) { Icon(Icons.Filled.FormatIndentDecrease, "Diminuir indentação") }
-                    IconButton(onClick = { setEditorValue(EditorLineOperations.duplicateCurrentLine(value)) }, modifier = Modifier.testTag("btn_editor_duplicate_line")) { Icon(Icons.Filled.ContentDuplicate, "Duplicar linha") }
+                    IconButton(onClick = { setEditorValue(EditorLineOperations.selectCurrentLine(value), false) }, modifier = Modifier.testTag("btn_editor_select_line")) { Icon(Icons.Filled.SelectAll, "Selecionar linha") }
+                    IconButton(onClick = { indentLine() }, modifier = Modifier.testTag("btn_editor_indent")) { Icon(Icons.Filled.FormatIndentIncrease, "Aumentar indentação") }
+                    IconButton(onClick = { outdentLine() }, modifier = Modifier.testTag("btn_editor_outdent")) { Icon(Icons.Filled.FormatIndentDecrease, "Diminuir indentação") }
+                    IconButton(onClick = { duplicateLine() }, modifier = Modifier.testTag("btn_editor_duplicate_line")) { Icon(Icons.Filled.ContentDuplicate, "Duplicar linha") }
                     IconButton(onClick = { searchVisible=!searchVisible }, modifier = Modifier.testTag("btn_editor_search")) { Icon(Icons.Filled.Search, "Pesquisar") }
                 }
             } }
-            if (searchVisible) Row(Modifier.fillMaxWidth().padding(horizontal=12.dp, vertical=8.dp), verticalAlignment=Alignment.CenterVertically) {
-                OutlinedTextField(value=searchQuery, onValueChange={ searchQuery=it; searchIndex=0 }, modifier=Modifier.weight(1f).testTag("editor_search_input"), singleLine=true, label={ Text("Pesquisar") })
-                Spacer(Modifier.width(4.dp)); Text("$occurrences"); IconButton(onClick={ moveSearch(-1) }) { Icon(Icons.Filled.KeyboardArrowUp,"Anterior") }; IconButton(onClick={ moveSearch(1) }) { Icon(Icons.Filled.KeyboardArrowDown,"Próximo") }
-            }
-            BasicTextField(value=value, onValueChange={ setEditorValue(EditorInputHandler.handle(value, it)) }, modifier=Modifier.fillMaxWidth().weight(1f).padding(16.dp).testTag("editor_text_field"), textStyle=MaterialTheme.typography.bodyLarge.copy(color=MaterialTheme.colorScheme.onBackground), cursorBrush=SolidColor(MaterialTheme.colorScheme.primary), visualTransformation=SyntaxHighlighter.visualTransformation(editorFileType), decorationBox={ inner -> Surface(tonalElevation=1.dp, modifier=Modifier.fillMaxSize()) { Column(Modifier.padding(12.dp)) { inner() } } })
+            if (searchVisible) Row(Modifier.fillMaxWidth().padding(horizontal=12.dp, vertical=8.dp), verticalAlignment=Alignment.CenterVertically) { OutlinedTextField(value=searchQuery, onValueChange={ searchQuery=it; searchIndex=0 }, modifier=Modifier.weight(1f).testTag("editor_search_input"), singleLine=true, label={ Text("Pesquisar") }); Spacer(Modifier.width(4.dp)); Text("$occurrences"); IconButton(onClick={ moveSearch(-1) }) { Icon(Icons.Filled.KeyboardArrowUp,"Anterior") }; IconButton(onClick={ moveSearch(1) }) { Icon(Icons.Filled.KeyboardArrowDown,"Próximo") } }
+            BasicTextField(value=value, onValueChange={ setEditorValue(EditorInputHandler.handle(value, it)) }, modifier=Modifier.fillMaxWidth().weight(1f).padding(16.dp).onKeyEvent { event -> if (event.type != KeyEventType.KeyDown) return@onKeyEvent false; when { event.key == Key.Tab && event.isShiftPressed -> { outdentLine(); true }; event.key == Key.Tab -> { indentLine(); true }; event.key == Key.D && event.isCtrlPressed -> { duplicateLine(); true }; else -> false } }.testTag("editor_text_field"), textStyle=MaterialTheme.typography.bodyLarge.copy(color=MaterialTheme.colorScheme.onBackground), cursorBrush=SolidColor(MaterialTheme.colorScheme.primary), visualTransformation=SyntaxHighlighter.visualTransformation(editorFileType), decorationBox={ inner -> Surface(tonalElevation=1.dp, modifier=Modifier.fillMaxSize()) { Column(Modifier.padding(12.dp)) { inner() } } })
             Row(Modifier.fillMaxWidth().padding(horizontal=12.dp, vertical=6.dp), horizontalArrangement=Arrangement.SpaceBetween) { Text("$lines linhas • ${value.text.length} caracteres", style=MaterialTheme.typography.labelSmall); Text("Ln $line, Col $column", style=MaterialTheme.typography.labelSmall) }
         }
     }
