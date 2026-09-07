@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
-import androidx.compose.material.icons.filled.ContentDuplicate
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.FormatIndentDecrease
@@ -169,7 +168,7 @@ fun EditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier, initialFile:
                     IconButton(onClick = { setEditorValue(EditorLineOperations.selectCurrentLine(value), false) }, modifier = Modifier.testTag("btn_editor_select_line")) { Icon(Icons.Filled.SelectAll, "Selecionar linha") }
                     IconButton(onClick = { indentLine() }, modifier = Modifier.testTag("btn_editor_indent")) { Icon(Icons.Filled.FormatIndentIncrease, "Aumentar indentação") }
                     IconButton(onClick = { outdentLine() }, modifier = Modifier.testTag("btn_editor_outdent")) { Icon(Icons.Filled.FormatIndentDecrease, "Diminuir indentação") }
-                    IconButton(onClick = { duplicateLine() }, modifier = Modifier.testTag("btn_editor_duplicate_line")) { Icon(Icons.Filled.ContentDuplicate, "Duplicar linha") }
+                    IconButton(onClick = { duplicateLine() }, modifier = Modifier.testTag("btn_editor_duplicate_line")) { Icon(Icons.Filled.ContentCopy, "Duplicar linha") }
                     IconButton(onClick = { searchVisible=!searchVisible }, modifier = Modifier.testTag("btn_editor_search")) { Icon(Icons.Filled.Search, "Pesquisar") }
                 }
             } }
@@ -180,23 +179,15 @@ fun EditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier, initialFile:
                     Column(Modifier.width(48.dp).padding(top = 12.dp), horizontalAlignment = Alignment.End) {
                         repeat(lines) { index ->
                             val number = index + 1
-                            Surface(
-                                color = if (number == line) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                                modifier = Modifier.fillMaxWidth().testTag(if (number == line) "editor_current_line_number" else "editor_line_number_$number")
-                            ) {
-                                Text(
-                                    text = number.toString(),
-                                    modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                                    style = editorTextStyle.copy(color = if (number == line) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
-                                )
+                            Surface(color = if (number == line) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth().testTag(if (number == line) "editor_current_line_number" else "editor_line_number_$number")) {
+                                Text(text = number.toString(), modifier = Modifier.fillMaxWidth().padding(end = 8.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End, style = editorTextStyle.copy(color = if (number == line) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant))
                             }
                         }
                     }
                     BasicTextField(
                         value=value,
                         onValueChange={ setEditorValue(EditorInputHandler.handle(value, it)) },
-                        modifier=Modifier.fillMaxWidth().weight(1f).padding(12.dp).onKeyEvent { event -> if (event.type != KeyEventType.KeyDown) return@onKeyEvent false; when { event.key == Key.Tab && event.isShiftPressed -> { outdentLine(); true }; event.key == Key.Tab -> { indentLine(); true }; event.key == Key.D && event.isCtrlPressed -> { duplicateLine(); true }; event.key == Key.Home -> { value = EditorNavigation.moveLineStart(value, event.isShiftPressed); true }; event.key == Key.End -> { value = EditorNavigation.moveLineEnd(value, event.isShiftPressed); true }; event.key == Key.PageUp && event.isCtrlPressed -> { value = EditorNavigation.moveDocumentStart(value, event.isShiftPressed); true }; event.key == Key.PageDown && event.isCtrlPressed -> { value = EditorNavigation.moveDocumentEnd(value, event.isShiftPressed); true }; else -> false } }.testTag("editor_text_field"),
+                        modifier=Modifier.fillMaxWidth().weight(1f).padding(12.dp).onKeyEvent { event -> if (event.type != KeyEventType.KeyDown) return@onKeyEvent false; when { event.key == Key.Tab && event.isShiftPressed -> { outdentLine(); true }; event.key == Key.Tab -> { indentLine(); true }; event.key == Key.D && event.isCtrlPressed -> { duplicateLine(); true }; event.key == Key.MoveHome -> { value = EditorNavigation.moveLineStart(value, event.isShiftPressed); true }; event.key == Key.MoveEnd -> { value = EditorNavigation.moveLineEnd(value, event.isShiftPressed); true }; event.key == Key.PageUp && event.isCtrlPressed -> { value = EditorNavigation.moveDocumentStart(value, event.isShiftPressed); true }; event.key == Key.PageDown && event.isCtrlPressed -> { value = EditorNavigation.moveDocumentEnd(value, event.isShiftPressed); true }; else -> false } }.testTag("editor_text_field"),
                         textStyle=editorTextStyle.copy(color=MaterialTheme.colorScheme.onBackground),
                         cursorBrush=SolidColor(MaterialTheme.colorScheme.primary),
                         visualTransformation=SyntaxHighlighter.visualTransformation(editorFileType),
