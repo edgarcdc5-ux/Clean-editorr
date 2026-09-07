@@ -49,10 +49,39 @@ object EditorLineOperations {
         val block = value.text.substring(lineStart, lineEnd)
         val transformed = block.split('\n').joinToString("\n", transform = transform)
         if (transformed == block) return value
+
+        fun mapOffset(offset: Int): Int {
+            val relative = (offset - lineStart).coerceIn(0, block.length)
+            if (relative == 0) return lineStart
+            var originalCursor = 0
+            var transformedCursor = 0
+            val originalLines = block.split('\n')
+            for ((index, line) in originalLines.withIndex()) {
+                val lineLength = line.length
+                if (relative <= originalCursor + lineLength) {
+                    val prefixLength = relative - originalCursor
+                    val transformedLine = transform(line)
+                    return lineStart + transformedCursor + when {
+                        prefixLength == 0 -> 0
+                        prefixLength == lineLength -> transformedLine.length
+                        transformedLine.length >= lineLength -> prefixLength + (transformedLine.length - lineLength)
+                        else -> prefixLength.coerceAtMost(transformedLine.length)
+                    }
+                }
+                originalCursor += lineLength
+                if (index < originalLines.lastIndex) {
+                    originalCursor++
+                    transformedCursor += transform(line).length + 1
+                } else {
+                    transformedCursor += transform(line).length
+                }
+            }
+            return lineStart + transformedCursor
+        }
+
         val text = value.text.substring(0, lineStart) + transformed + value.text.substring(lineEnd)
-        val delta = transformed.length - block.length
-        val newStart = (value.selection.start + (if (value.selection.start >= lineStart) minOf(delta, value.selection.start - lineStart + delta) else 0)).coerceIn(0, text.length)
-        val newEnd = (value.selection.end + delta).coerceIn(newStart, text.length)
+        val newStart = mapOffset(value.selection.start).coerceIn(0, text.length)
+        val newEnd = mapOffset(value.selection.end).coerceIn(newStart, text.length)
         return value.copy(text = text, selection = TextRange(newStart, newEnd))
     }
 }
