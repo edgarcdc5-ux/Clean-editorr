@@ -58,6 +58,7 @@ object EditorFormatter {
         val result = StringBuilder()
         var indent = 0
         var openTagOnCurrentLine = false
+        var textOnCurrentLine = false
 
         for (token in tokens) {
             val closing = token.startsWith("</")
@@ -67,6 +68,13 @@ object EditorFormatter {
             if (textToken && openTagOnCurrentLine) {
                 result.append(token)
                 openTagOnCurrentLine = false
+                textOnCurrentLine = true
+                continue
+            }
+
+            if (closing && textOnCurrentLine) {
+                result.append(token)
+                textOnCurrentLine = false
                 continue
             }
 
@@ -76,6 +84,7 @@ object EditorFormatter {
             result.append(token)
 
             openTagOnCurrentLine = token.startsWith("<") && !closing && !selfClosing
+            textOnCurrentLine = false
             if (openTagOnCurrentLine) indent++
         }
         return result.toString()
