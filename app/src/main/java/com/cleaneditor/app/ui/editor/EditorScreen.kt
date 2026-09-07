@@ -61,6 +61,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import com.cleaneditor.app.data.model.EditorFileType
 import com.cleaneditor.app.data.model.FileItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -104,6 +105,7 @@ fun EditorScreen(
     val undoStack = remember { mutableStateListOf<TextFieldValue>() }
     val redoStack = remember { mutableStateListOf<TextFieldValue>() }
     val isModified = value.text != savedText
+    val editorFileType = remember(currentFileName) { EditorFileType.fromFileName(currentFileName) }
 
     fun setEditorValue(newValue: TextFieldValue, history: Boolean = true) {
         if (newValue == value) return
@@ -282,6 +284,7 @@ fun EditorScreen(
                 modifier=Modifier.fillMaxWidth().weight(1f).padding(16.dp).testTag("editor_text_field"),
                 textStyle=MaterialTheme.typography.bodyLarge.copy(color=MaterialTheme.colorScheme.onBackground),
                 cursorBrush=SolidColor(MaterialTheme.colorScheme.primary),
+                visualTransformation=SyntaxHighlighter.visualTransformation(editorFileType),
                 decorationBox={ inner -> Surface(tonalElevation=1.dp, modifier=Modifier.fillMaxSize()) { Column(Modifier.padding(12.dp)) { inner() } } }
             )
             Row(Modifier.fillMaxWidth().padding(horizontal=12.dp, vertical=6.dp), horizontalArrangement=Arrangement.SpaceBetween) {
