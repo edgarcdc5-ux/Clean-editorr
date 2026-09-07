@@ -1,0 +1,46 @@
+<resources>
+    <string name="app_name">CleanEditor</string>
+    <string name="nav_home">Início</string>
+    <string name="nav_files">Arquivos</string>
+    <string name="nav_reminders">Lembretes</string>
+    <string name="nav_ai">IA</string>
+    <string name="nav_settings">Ajustes</string>
+
+    <string name="home_tagline">Escreva. Organize. Lembre. Use a IA.</string>
+    <string name="home_welcome_title">Bem-vindo ao CleanEditor</string>
+    <string name="home_welcome_subtitle">A sua central de escrita limpa, organização de arquivos, tarefas e produtividade com IA.</string>
+
+    <string name="section_quick_access">Visão Geral dos Módulos</string>
+    <string name="module_editor_name">Editor de Textos</string>
+    <string name="module_editor_desc">Suporte para TXT, Markdown, JSON, CSV, HTML, código e logs com edição fluida.</string>
+    <string name="module_files_name">Gerenciador de Arquivos</string>
+    <string name="module_files_desc">Organize pastas, gerencie documentos e mantenha tudo ao seu alcance.</string>
+    <string name="module_reminders_name">Lembretes &amp; Tarefas</string>
+    <string name="module_reminders_desc">Agende compromissos, defina prioridades e nunca perca prazos.</string>
+    <string name="module_ai_name">Assistente Inteligente</string>
+    <string name="module_ai_desc">Resuma, revise, reescreva e extraia lembretes contextualizados com Gemini.</string>
+
+    <string name="files_title">Gerenciador de Arquivos</string>
+    <string name="files_empty_title">Seus arquivos aparecerão aqui</string>
+    <string name="files_empty_desc">O módulo de gerenciamento de pastas e documentos está preparado para receber seus arquivos locais na próxima fase.</string>
+
+    <string name="reminders_title">Lembretes &amp; Tarefas</string>
+    <string name="reminders_empty_title">Nenhum lembrete criado</string>
+    <string name="reminders_empty_desc">O módulo de lembretes e tarefas independentes estará pronto para agendamentos e prioridades na próxima fase.</string>
+
+    <string name="ai_title">Assistente de IA</string>
+    <string name="ai_empty_title">Seu assistente inteligente estará aqui</string>
+    <string name="ai_empty_desc">A integração segura e contextualizada com o Gemini será conectada na fase correspondente.</string>
+
+    <string name="settings_title">Configurações</string>
+    <string name="settings_theme_title">Tema da Interface</string>
+    <string name="settings_theme_dark">Tema Escuro (Padrão)</string>
+    <string name="settings_theme_light">Tema Claro</string>
+    <string name="settings_theme_system">Seguir o Sistema</string>
+    <string name="settings_about_title">Sobre o CleanEditor</string>
+    <string name="settings_version">Versão 1.0 (Fase 1 — Fundação)</string>
+    <string name="settings_privacy_note">Privacidade: seus dados são mantidos localmente por padrão.</string>
+
+    <string name="badge_phase1">Fase 1 • Fundação</string>
+    <string name="badge_ready">Pronto para expansão</string>
+</resources>
