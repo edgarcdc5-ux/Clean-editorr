@@ -75,6 +75,7 @@ object EditorFormatter {
             if (closing && textOnCurrentLine) {
                 result.append(token)
                 textOnCurrentLine = false
+                indent = (indent - 1).coerceAtLeast(0)
                 continue
             }
 
