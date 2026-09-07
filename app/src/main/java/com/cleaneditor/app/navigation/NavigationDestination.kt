@@ -4,11 +4,13 @@ import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.CheckCircleOutline
+import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Settings
@@ -22,45 +24,12 @@ sealed class NavigationDestination(
     val unselectedIcon: ImageVector,
     val testTag: String
 ) {
-    data object Home : NavigationDestination(
-        route = "home",
-        labelRes = R.string.nav_home,
-        selectedIcon = Icons.Filled.Home,
-        unselectedIcon = Icons.Outlined.Home,
-        testTag = "nav_item_home"
-    )
-
-    data object Files : NavigationDestination(
-        route = "files",
-        labelRes = R.string.nav_files,
-        selectedIcon = Icons.Filled.Folder,
-        unselectedIcon = Icons.Outlined.Folder,
-        testTag = "nav_item_files"
-    )
-
-    data object Reminders : NavigationDestination(
-        route = "reminders",
-        labelRes = R.string.nav_reminders,
-        selectedIcon = Icons.Filled.CheckCircle,
-        unselectedIcon = Icons.Outlined.CheckCircleOutline,
-        testTag = "nav_item_reminders"
-    )
-
-    data object Ai : NavigationDestination(
-        route = "ai",
-        labelRes = R.string.nav_ai,
-        selectedIcon = Icons.Filled.AutoAwesome,
-        unselectedIcon = Icons.Outlined.AutoAwesome,
-        testTag = "nav_item_ai"
-    )
-
-    data object Settings : NavigationDestination(
-        route = "settings",
-        labelRes = R.string.nav_settings,
-        selectedIcon = Icons.Filled.Settings,
-        unselectedIcon = Icons.Outlined.Settings,
-        testTag = "nav_item_settings"
-    )
+    data object Home : NavigationDestination("home", R.string.nav_home, Icons.Filled.Home, Icons.Outlined.Home, "nav_item_home")
+    data object Files : NavigationDestination("files", R.string.nav_files, Icons.Filled.Folder, Icons.Outlined.Folder, "nav_item_files")
+    data object Reminders : NavigationDestination("reminders", R.string.nav_reminders, Icons.Filled.CheckCircle, Icons.Outlined.CheckCircleOutline, "nav_item_reminders")
+    data object Ai : NavigationDestination("ai", R.string.nav_ai, Icons.Filled.AutoAwesome, Icons.Outlined.AutoAwesome, "nav_item_ai")
+    data object Settings : NavigationDestination("settings", R.string.nav_settings, Icons.Filled.Settings, Icons.Outlined.Settings, "nav_item_settings")
+    data object Editor : NavigationDestination("editor", R.string.module_editor_name, Icons.Filled.EditNote, Icons.Outlined.EditNote, "nav_item_editor")
 
     companion object {
         val items = listOf(Home, Files, Reminders, Ai, Settings)
