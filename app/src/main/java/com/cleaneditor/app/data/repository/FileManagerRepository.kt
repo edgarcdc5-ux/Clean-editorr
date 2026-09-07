@@ -58,7 +58,7 @@ class FileManagerRepository(context: Context) {
     suspend fun moveItem(source: File, destinationDir: File): Result<File> = withContext(Dispatchers.IO) {
         try {
             val src = safeExisting(source); val dir = safeDirectory(destinationDir)
-            require(!dir.toPath().startsWith(src.canonicalFile.toPath())) { "Não é possível mover uma pasta para dentro dela mesma." }
+            require(!isSameOrDescendant(dir, src)) { "Não é possível mover uma pasta para dentro dela mesma." }
             val target = uniqueTarget(dir, src.name)
             if (!src.renameTo(target)) {
                 if (src.isDirectory) copyDirectory(src, target) else src.copyTo(target, overwrite = false)
@@ -88,14 +88,77 @@ class FileManagerRepository(context: Context) {
     fun search(items: List<FileItem>, query: String): List<FileItem> = if (query.isBlank()) items else items.filter { it.name.contains(query, true) || it.extension.contains(query.trimStart('.'), true) }
 
     private fun toItem(file: File) = FileItem(file.absolutePath, file.name, file.absolutePath, file.isDirectory, if (file.isFile) file.length() else 0L, file.lastModified(), if (file.isFile) file.extension.lowercase() else "", isFavorite(file.absolutePath))
-    private fun safeDirectory(dir: File): File { val candidate = dir.canonicalFile; require(candidate == rootDir.canonicalFile || candidate.toPath().startsWith(rootDir.canonicalFile.toPath())) { "Diretório inválido." }; if (!candidate.exists()) candidate.mkdirs(); require(candidate.isDirectory) { "Não é uma pasta." }; return candidate }
-    private fun safeExisting(file: File): File { val candidate = file.canonicalFile; require(candidate.toPath().startsWith(rootDir.canonicalFile.toPath()) && candidate != rootDir.canonicalFile) { "Arquivo inválido." }; require(candidate.exists()) { "Arquivo não encontrado." }; return candidate }
-    private fun safeExistingOrChild(file: File): File { val candidate = file.canonicalFile; require(candidate.toPath().startsWith(rootDir.canonicalFile.toPath()) && candidate != rootDir.canonicalFile) { "Arquivo inválido." }; return candidate }
-    private fun safeChild(parent: File, name: String): File { val safeParent = safeDirectory(parent); val target = File(safeParent, name).canonicalFile; require(target.parentFile == safeParent.canonicalFile) { "Nome de arquivo inválido." }; return target }
-    private fun uniqueTarget(parent: File, name: String): File { var candidate = File(parent, name); if (!candidate.exists()) return candidate; val ext = name.substringAfterLast('.', ""); val base = if (ext.isEmpty()) name else name.removeSuffix(".$ext"); var index = 1; do { candidate = File(parent, if (ext.isEmpty()) "$base ($index)" else "$base ($index).$ext"); index++ } while (candidate.exists()); return candidate }
-    private fun copyDirectory(source: File, target: File) { require(target.mkdirs()) { "Não foi possível criar o destino." }; source.listFiles()?.forEach { child -> val childTarget = File(target, child.name); if (child.isDirectory) copyDirectory(child, childTarget) else child.copyTo(childTarget, overwrite = false) } }
+
+    private fun isWithinRoot(candidate: File): Boolean {
+        val rootPath = rootDir.canonicalPath
+        val candidatePath = candidate.canonicalPath
+        return candidatePath == rootPath || candidatePath.startsWith(rootPath + File.separator)
+    }
+
+    private fun isSameOrDescendant(candidate: File, parent: File): Boolean {
+        val parentPath = parent.canonicalPath
+        val candidatePath = candidate.canonicalPath
+        return candidatePath == parentPath || candidatePath.startsWith(parentPath + File.separator)
+    }
+
+    private fun safeDirectory(dir: File): File {
+        val candidate = dir.canonicalFile
+        require(isWithinRoot(candidate)) { "Diretório inválido." }
+        if (!candidate.exists()) candidate.mkdirs()
+        require(candidate.isDirectory) { "Não é uma pasta." }
+        return candidate
+    }
+
+    private fun safeExisting(file: File): File {
+        val candidate = file.canonicalFile
+        require(isWithinRoot(candidate) && candidate != rootDir.canonicalFile) { "Arquivo inválido." }
+        require(candidate.exists()) { "Arquivo não encontrado." }
+        return candidate
+    }
+
+    private fun safeExistingOrChild(file: File): File {
+        val candidate = file.canonicalFile
+        require(isWithinRoot(candidate) && candidate != rootDir.canonicalFile) { "Arquivo inválido." }
+        return candidate
+    }
+
+    private fun safeChild(parent: File, name: String): File {
+        val safeParent = safeDirectory(parent)
+        val target = File(safeParent, name).canonicalFile
+        require(target.parentFile == safeParent.canonicalFile) { "Nome de arquivo inválido." }
+        return target
+    }
+
+    private fun uniqueTarget(parent: File, name: String): File {
+        var candidate = File(parent, name)
+        if (!candidate.exists()) return candidate
+        val ext = name.substringAfterLast('.', "")
+        val base = if (ext.isEmpty()) name else name.removeSuffix(".$ext")
+        var index = 1
+        do {
+            candidate = File(parent, if (ext.isEmpty()) "$base ($index)" else "$base ($index).$ext")
+            index++
+        } while (candidate.exists())
+        return candidate
+    }
+
+    private fun copyDirectory(source: File, target: File) {
+        require(target.mkdirs()) { "Não foi possível criar o destino." }
+        source.listFiles()?.forEach { child ->
+            val childTarget = File(target, child.name)
+            if (child.isDirectory) copyDirectory(child, childTarget) else child.copyTo(childTarget, overwrite = false)
+        }
+    }
 
     companion object {
-        fun validateName(name: String): Result<Unit> { val trimmed = name.trim(); return when { trimmed.isEmpty() -> Result.failure(IllegalArgumentException("O nome não pode ficar vazio.")); trimmed == "." || trimmed == ".." -> Result.failure(IllegalArgumentException("Nome inválido.")); trimmed.contains('/') || trimmed.contains('\\') -> Result.failure(IllegalArgumentException("O nome contém caracteres inválidos.")); else -> Result.success(Unit) } }
+        fun validateName(name: String): Result<Unit> {
+            val trimmed = name.trim()
+            return when {
+                trimmed.isEmpty() -> Result.failure(IllegalArgumentException("O nome não pode ficar vazio."))
+                trimmed == "." || trimmed == ".." -> Result.failure(IllegalArgumentException("Nome inválido."))
+                trimmed.contains('/') || trimmed.contains('\\') -> Result.failure(IllegalArgumentException("O nome contém caracteres inválidos."))
+                else -> Result.success(Unit)
+            }
+        }
     }
 }
