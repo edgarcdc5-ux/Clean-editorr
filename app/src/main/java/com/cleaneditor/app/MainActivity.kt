@@ -5,7 +5,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -15,8 +14,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -33,6 +30,7 @@ import com.cleaneditor.app.navigation.NavigationDestination
 import com.cleaneditor.app.theme.AppThemeSetting
 import com.cleaneditor.app.theme.CleanEditorTheme
 import com.cleaneditor.app.ui.ai.AiScreen
+import com.cleaneditor.app.ui.editor.EditorScreen
 import com.cleaneditor.app.ui.files.FilesScreen
 import com.cleaneditor.app.ui.home.HomeScreen
 import com.cleaneditor.app.ui.reminders.RemindersScreen
@@ -44,7 +42,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             var themeSetting by remember { mutableStateOf(AppThemeSetting.DARK) }
-
             CleanEditorTheme(themeSetting = themeSetting) {
                 CleanEditorApp(
                     currentTheme = themeSetting,
@@ -62,38 +59,42 @@ fun CleanEditorApp(
     modifier: Modifier = Modifier
 ) {
     var activeDestination by remember { mutableStateOf<NavigationDestination>(NavigationDestination.Home) }
+    var editorOpen by remember { mutableStateOf(false) }
 
     Surface(
         modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Scaffold(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
-            bottomBar = {
-                CleanEditorBottomBar(
-                    currentDestination = activeDestination,
-                    onDestinationSelected = { activeDestination = it }
-                )
-            }
-        ) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                when (activeDestination) {
-                    NavigationDestination.Home -> HomeScreen(
-                        onNavigateTo = { activeDestination = it }
+        if (editorOpen) {
+            EditorScreen(onBack = { editorOpen = false })
+        } else {
+            Scaffold(
+                modifier = Modifier.fillMaxSize().statusBarsPadding(),
+                bottomBar = {
+                    CleanEditorBottomBar(
+                        currentDestination = activeDestination,
+                        onDestinationSelected = { activeDestination = it }
                     )
-                    NavigationDestination.Files -> FilesScreen()
-                    NavigationDestination.Reminders -> RemindersScreen()
-                    NavigationDestination.Ai -> AiScreen()
-                    NavigationDestination.Settings -> SettingsScreen(
-                        currentTheme = currentTheme,
-                        onThemeChange = onThemeChange
-                    )
+                }
+            ) { innerPadding ->
+                Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+                    when (activeDestination) {
+                        NavigationDestination.Home -> HomeScreen(
+                            onNavigateTo = { destination ->
+                                if (destination == NavigationDestination.Editor) editorOpen = true
+                                else activeDestination = destination
+                            },
+                            onOpenEditor = { editorOpen = true }
+                        )
+                        NavigationDestination.Files -> FilesScreen()
+                        NavigationDestination.Reminders -> RemindersScreen()
+                        NavigationDestination.Ai -> AiScreen()
+                        NavigationDestination.Settings -> SettingsScreen(
+                            currentTheme = currentTheme,
+                            onThemeChange = onThemeChange
+                        )
+                        NavigationDestination.Editor -> editorOpen = true
+                    }
                 }
             }
         }
@@ -106,15 +107,12 @@ private fun CleanEditorBottomBar(
     onDestinationSelected: (NavigationDestination) -> Unit
 ) {
     NavigationBar(
-        modifier = Modifier
-            .navigationBarsPadding()
-            .testTag("clean_editor_bottom_bar"),
+        modifier = Modifier.navigationBarsPadding().testTag("clean_editor_bottom_bar"),
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 6.dp
     ) {
         NavigationDestination.items.forEach { destination ->
             val isSelected = currentDestination == destination
-
             NavigationBarItem(
                 modifier = Modifier.testTag(destination.testTag),
                 selected = isSelected,
@@ -126,10 +124,7 @@ private fun CleanEditorBottomBar(
                     )
                 },
                 label = {
-                    Text(
-                        text = stringResource(destination.labelRes),
-                        style = MaterialTheme.typography.labelSmall
-                    )
+                    Text(text = stringResource(destination.labelRes), style = MaterialTheme.typography.labelSmall)
                 },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.primary,
