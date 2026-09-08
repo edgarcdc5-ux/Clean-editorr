@@ -1,16 +1,15 @@
 package com.cleaneditor.app
 
 import android.os.Bundle
-import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.material3.Text
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(TextView(this).apply {
-            text = "CleanEditor\nDiagnóstico de inicialização"
-            textSize = 22f
-            setPadding(32, 32, 32, 32)
-        })
+        setContent {
+            Text("CleanEditor\nDiagnóstico do Compose")
+        }
     }
 }
