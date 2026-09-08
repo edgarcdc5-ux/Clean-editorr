@@ -40,9 +40,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             var currentTheme by remember { mutableStateOf(AppThemeSetting.DARK) }
-            CleanEditorTheme(themeSetting = currentTheme) {
-                CleanEditorShell(currentTheme = currentTheme, onThemeChange = { currentTheme = it })
-            }
+            CleanEditorTheme(themeSetting = currentTheme) { CleanEditorShell(currentTheme, { currentTheme = it }) }
         }
     }
 }
@@ -52,11 +50,10 @@ private fun CleanEditorShell(currentTheme: AppThemeSetting, onThemeChange: (AppT
     var activeDestination by remember { mutableStateOf<NavigationDestination>(NavigationDestination.Home) }
     var selectedFile by remember { mutableStateOf<FileItem?>(null) }
     var editorInitialText by remember { mutableStateOf<String?>(null) }
+    var reminderDraftContent by remember { mutableStateOf<String?>(null) }
 
     fun openEditor(text: String? = null, file: FileItem? = null) {
-        editorInitialText = text
-        selectedFile = file
-        activeDestination = NavigationDestination.Editor
+        editorInitialText = text; selectedFile = file; activeDestination = NavigationDestination.Editor
     }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -65,36 +62,27 @@ private fun CleanEditorShell(currentTheme: AppThemeSetting, onThemeChange: (AppT
                 onBack = { activeDestination = NavigationDestination.Home; selectedFile = null; editorInitialText = null },
                 initialFile = selectedFile,
                 initialText = editorInitialText,
-                onCreateReminder = { content ->
-                    editorInitialText = content
-                    activeDestination = NavigationDestination.Reminders
-                }
+                onCreateReminder = { content -> reminderDraftContent = content; activeDestination = NavigationDestination.Reminders }
             )
         } else {
-            Scaffold(
-                Modifier.fillMaxSize().statusBarsPadding(),
-                bottomBar = {
-                    NavigationBar(Modifier.navigationBarsPadding().testTag("clean_editor_bottom_bar"), containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 6.dp) {
-                        NavigationDestination.items.forEach { destination ->
-                            val isSelected = activeDestination == destination
-                            NavigationBarItem(
-                                modifier = Modifier.testTag(destination.testTag), selected = isSelected,
-                                onClick = { activeDestination = destination },
-                                icon = { Icon(if (isSelected) destination.selectedIcon else destination.unselectedIcon, stringResource(destination.labelRes)) },
-                                label = { Text(stringResource(destination.labelRes), style = MaterialTheme.typography.labelSmall) }
-                            )
-                        }
+            Scaffold(Modifier.fillMaxSize().statusBarsPadding(), bottomBar = {
+                NavigationBar(Modifier.navigationBarsPadding().testTag("clean_editor_bottom_bar"), containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 6.dp) {
+                    NavigationDestination.items.forEach { destination ->
+                        val isSelected = activeDestination == destination
+                        NavigationBarItem(
+                            modifier = Modifier.testTag(destination.testTag), selected = isSelected,
+                            onClick = { activeDestination = destination },
+                            icon = { Icon(if (isSelected) destination.selectedIcon else destination.unselectedIcon, stringResource(destination.labelRes)) },
+                            label = { Text(stringResource(destination.labelRes), style = MaterialTheme.typography.labelSmall) }
+                        )
                     }
                 }
-            ) { innerPadding ->
+            }) { innerPadding ->
                 Box(Modifier.fillMaxSize().padding(innerPadding)) {
                     when (activeDestination) {
-                        NavigationDestination.Home -> HomeScreen(
-                            onNavigateTo = { destination -> if (destination == NavigationDestination.Editor) openEditor() else activeDestination = destination },
-                            onOpenEditor = { openEditor() }
-                        )
+                        NavigationDestination.Home -> HomeScreen(onNavigateTo = { destination -> if (destination == NavigationDestination.Editor) openEditor() else activeDestination = destination }, onOpenEditor = { openEditor() })
                         NavigationDestination.Files -> FilesScreen(onOpenFile = { file -> openEditor(file = file) })
-                        NavigationDestination.Reminders -> RemindersScreen(onOpenEditor = { text -> openEditor(text = text) })
+                        NavigationDestination.Reminders -> RemindersScreen(initialContent = reminderDraftContent, onDraftConsumed = { reminderDraftContent = null }, onOpenEditor = { text -> openEditor(text = text) })
                         NavigationDestination.Ai -> AiScreen(onOpenEditor = { response -> openEditor(text = response) })
                         NavigationDestination.Settings -> SettingsScreen(currentTheme = currentTheme, onThemeChange = onThemeChange)
                         NavigationDestination.Editor -> Unit
