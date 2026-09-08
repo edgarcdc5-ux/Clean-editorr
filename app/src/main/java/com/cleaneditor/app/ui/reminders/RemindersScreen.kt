@@ -54,7 +54,8 @@ fun RemindersScreen(
     onDraftConsumed: () -> Unit = {},
     onOpenEditor: (String) -> Unit = {}
 ) {
-    val repository = remember { ReminderRepository(LocalContext.current) }
+    val context = LocalContext.current
+    val repository = remember(context) { ReminderRepository(context) }
     var reminders by remember { mutableStateOf(repository.getAll()) }
     var editing by remember { mutableStateOf<Reminder?>(null) }
     var creating by remember { mutableStateOf(false) }
