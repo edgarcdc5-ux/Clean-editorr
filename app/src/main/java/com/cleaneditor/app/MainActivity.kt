@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun CleanEditorShellDiagnostic() {
-    var activeDestination by remember { mutableStateOf(NavigationDestination.Home) }
+    var activeDestination by remember { mutableStateOf<NavigationDestination>(NavigationDestination.Home) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
