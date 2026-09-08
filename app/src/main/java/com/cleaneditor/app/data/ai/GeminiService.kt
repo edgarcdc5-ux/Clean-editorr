@@ -12,16 +12,13 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class GeminiService {
-    companion object {
-        const val MAX_PROMPT_CHARS = 20_000
-    }
+    companion object { const val MAX_PROMPT_CHARS = 20_000 }
 
     suspend fun generate(prompt: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val cleanPrompt = prompt.trim()
             require(cleanPrompt.isNotEmpty()) { "Digite um texto antes de consultar a IA." }
             require(cleanPrompt.length <= MAX_PROMPT_CHARS) { "O texto é muito longo. Limite: $MAX_PROMPT_CHARS caracteres." }
-
             val apiKey = BuildConfig.GEMINI_API_KEY.trim()
             require(apiKey.isNotEmpty()) { "Chave da API do Gemini não configurada." }
 
@@ -33,16 +30,12 @@ class GeminiService {
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json; charset=utf-8")
             }
-
             try {
-                val body = JSONObject()
-                    .put("contents", JSONArray().put(JSONObject().put("parts", JSONArray().put(JSONObject().put("text", cleanPrompt)))))
-                    .toString()
+                val body = JSONObject().put("contents", JSONArray().put(JSONObject().put("parts", JSONArray().put(JSONObject().put("text", cleanPrompt))))).toString()
                 connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-
                 val code = connection.responseCode
                 val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-                val response = stream?.let { BufferedReader(InputStreamReader(it, Charsets.UTF_8)).use(BufferedReader::readText) }.orEmpty()
+                val response = stream?.let { BufferedReader(InputStreamReader(it, Charsets.UTF_8)).use { reader -> reader.readText() } }.orEmpty()
                 if (code !in 200..299) {
                     val apiMessage = runCatching { JSONObject(response).optJSONObject("error")?.optString("message") }.getOrNull()
                     val detail = apiMessage?.takeIf { it.isNotBlank() } ?: "Falha na API do Gemini."
@@ -53,14 +46,11 @@ class GeminiService {
                         else -> "$detail (HTTP $code)"
                     })
                 }
-
                 val json = JSONObject(response)
                 val candidates = json.optJSONArray("candidates") ?: error("Resposta do Gemini sem candidatos.")
                 val text = candidates.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts")?.optJSONObject(0)?.optString("text")?.trim().orEmpty()
                 text.ifBlank { error("O Gemini retornou uma resposta vazia.") }
-            } finally {
-                connection.disconnect()
-            }
+            } finally { connection.disconnect() }
         }.recoverCatching { throwable ->
             when (throwable) {
                 is IOException -> error("Não foi possível conectar à IA. Verifique sua internet e tente novamente.")
