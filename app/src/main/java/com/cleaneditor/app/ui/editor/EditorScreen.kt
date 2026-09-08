@@ -89,7 +89,7 @@ private fun queryFileName(context: Context, uri: Uri): String {
 }
 
 @Composable
-fun EditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier, initialFile: FileItem? = null) {
+fun EditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier, initialFile: FileItem? = null, initialText: String? = null) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
@@ -97,7 +97,7 @@ fun EditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier, initialFile:
     var currentUri by remember { mutableStateOf<Uri?>(null) }
     var currentInternalFile by remember { mutableStateOf<File?>(null) }
     var currentFileName by remember { mutableStateOf("Sem título.txt") }
-    var value by remember { mutableStateOf(TextFieldValue("")) }
+    var value by remember { mutableStateOf(TextFieldValue(initialText.orEmpty())) }
     var savedText by remember { mutableStateOf("") }
     var searchQuery by remember { mutableStateOf("") }
     var searchVisible by remember { mutableStateOf(false) }
@@ -118,7 +118,17 @@ fun EditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier, initialFile:
     fun resetNew() { currentUri = null; currentInternalFile = null; currentFileName = "Sem título.txt"; savedText = ""; setEditorValue(TextFieldValue(""), false); undoStack.clear(); redoStack.clear() }
     BackHandler { guarded(onBack) }
 
-    LaunchedEffect(initialFile?.path) {
+    LaunchedEffect(initialFile?.path, initialText) {
+        if (!initialText.isNullOrEmpty()) {
+            currentUri = null
+            currentInternalFile = null
+            currentFileName = "Resultado IA.txt"
+            savedText = ""
+            setEditorValue(TextFieldValue(initialText), false)
+            undoStack.clear()
+            redoStack.clear()
+            return@LaunchedEffect
+        }
         val file = initialFile?.file ?: return@LaunchedEffect
         try { val content = withContext(Dispatchers.IO) { file.readText(Charsets.UTF_8) }; currentInternalFile = file; currentUri = null; currentFileName = file.name; savedText = content; setEditorValue(TextFieldValue(content), false); undoStack.clear(); redoStack.clear() }
         catch (e: Exception) { snackbarHostState.showSnackbar("Erro ao abrir arquivo: ${e.localizedMessage ?: "falha de leitura"}") }
