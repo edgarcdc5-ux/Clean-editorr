@@ -32,6 +32,8 @@
     <string name="ai_subtitle">Converse com o Gemini usando o contexto que você fornecer.</string>
     <string name="ai_prompt_label">O que você precisa?</string>
     <string name="ai_prompt_hint">Ex.: Resuma este texto, revise a escrita ou transforme em tarefas.</string>
+    <string name="ai_use_clipboard">Usar texto copiado do editor</string>
+    <string name="ai_actions_title">Ações rápidas de IA</string>
     <string name="ai_generate_button">Gerar resposta</string>
     <string name="ai_response_title">Resposta da IA</string>
 
