@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -18,8 +16,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.cleaneditor.app.navigation.NavigationDestination
 import com.cleaneditor.app.theme.CleanEditorTheme
 import com.cleaneditor.app.ui.home.HomeScreen
 
@@ -28,36 +32,55 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             CleanEditorTheme {
-                CleanEditorShellDiagnostic()
+                CleanEditorShell()
             }
         }
     }
 }
 
 @Composable
-private fun CleanEditorShellDiagnostic() {
+private fun CleanEditorShell() {
+    var activeDestination by remember {
+        mutableStateOf<NavigationDestination>(NavigationDestination.Home)
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
         Scaffold(
-            modifier = Modifier.fillMaxSize().statusBarsPadding(),
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding(),
             bottomBar = {
                 NavigationBar(
                     modifier = Modifier.navigationBarsPadding(),
                     containerColor = MaterialTheme.colorScheme.surface,
                     tonalElevation = 6.dp
                 ) {
-                    NavigationBarItem(
-                        selected = true,
-                        onClick = { },
-                        icon = {
-                            Icon(Icons.Filled.Home, contentDescription = "Home")
-                        },
-                        label = {
-                            Text("Home", style = MaterialTheme.typography.labelSmall)
-                        }
-                    )
+                    NavigationDestination.items.forEach { destination ->
+                        val isSelected = activeDestination == destination
+                        NavigationBarItem(
+                            selected = isSelected,
+                            onClick = { activeDestination = destination },
+                            icon = {
+                                Icon(
+                                    imageVector = if (isSelected) {
+                                        destination.selectedIcon
+                                    } else {
+                                        destination.unselectedIcon
+                                    },
+                                    contentDescription = stringResource(destination.labelRes)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = stringResource(destination.labelRes),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        )
+                    }
                 }
             }
         ) { innerPadding ->
@@ -67,8 +90,12 @@ private fun CleanEditorShellDiagnostic() {
                     .padding(innerPadding)
             ) {
                 HomeScreen(
-                    onNavigateTo = { },
-                    onOpenEditor = { }
+                    onNavigateTo = { destination ->
+                        activeDestination = destination
+                    },
+                    onOpenEditor = {
+                        activeDestination = NavigationDestination.Editor
+                    }
                 )
             }
         }
