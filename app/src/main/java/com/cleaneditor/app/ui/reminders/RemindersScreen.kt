@@ -30,6 +30,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,21 +48,35 @@ import com.cleaneditor.app.ui.shared.CleanEditorHeader
 private val priorities = listOf("Baixa", "Média", "Alta")
 
 @Composable
-fun RemindersScreen(modifier: Modifier = Modifier, onOpenEditor: (String) -> Unit = {}) {
+fun RemindersScreen(
+    modifier: Modifier = Modifier,
+    initialContent: String? = null,
+    onDraftConsumed: () -> Unit = {},
+    onOpenEditor: (String) -> Unit = {}
+) {
     val repository = remember { ReminderRepository(LocalContext.current) }
     var reminders by remember { mutableStateOf(repository.getAll()) }
     var editing by remember { mutableStateOf<Reminder?>(null) }
     var creating by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<Reminder?>(null) }
+    var formInitialContent by remember { mutableStateOf("") }
+
+    LaunchedEffect(initialContent) {
+        if (initialContent != null) {
+            formInitialContent = initialContent
+            creating = true
+            onDraftConsumed()
+        }
+    }
     fun refresh() { reminders = repository.getAll() }
 
     if (creating || editing != null) {
-        ReminderEditorForm(editing, { creating = false; editing = null }, { item -> repository.save(item); refresh(); creating = false; editing = null })
+        ReminderEditorForm(editing, formInitialContent, { creating = false; editing = null; formInitialContent = "" }, { item -> repository.save(item); refresh(); creating = false; editing = null; formInitialContent = "" })
         return
     }
 
     Scaffold(modifier = modifier.fillMaxSize().testTag("screen_reminders"), floatingActionButton = {
-        FloatingActionButton(onClick = { creating = true }, modifier = Modifier.testTag("btn_reminder_add")) { Icon(Icons.Filled.Add, "Novo lembrete") }
+        FloatingActionButton(onClick = { formInitialContent = ""; creating = true }, modifier = Modifier.testTag("btn_reminder_add")) { Icon(Icons.Filled.Add, "Novo lembrete") }
     }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             CleanEditorHeader(title = "Lembretes & Tarefas", subtitle = "Persistentes, organizados por data, prioridade e categoria")
@@ -109,9 +124,9 @@ private fun ReminderCard(item: Reminder, onToggle: () -> Unit, onEdit: () -> Uni
 }
 
 @Composable
-private fun ReminderEditorForm(initial: Reminder?, onCancel: () -> Unit, onSave: (Reminder) -> Unit) {
-    var title by remember(initial?.id) { mutableStateOf(initial?.title.orEmpty()) }
-    var content by remember(initial?.id) { mutableStateOf(initial?.content.orEmpty()) }
+private fun ReminderEditorForm(initial: Reminder?, initialContent: String, onCancel: () -> Unit, onSave: (Reminder) -> Unit) {
+    var title by remember(initial?.id, initialContent) { mutableStateOf(initial?.title.orEmpty()) }
+    var content by remember(initial?.id, initialContent) { mutableStateOf(initial?.content ?: initialContent) }
     var date by remember(initial?.id) { mutableStateOf(initial?.date.orEmpty()) }
     var priority by remember(initial?.id) { mutableStateOf(initial?.priority ?: "Média") }
     var category by remember(initial?.id) { mutableStateOf(initial?.category ?: "Geral") }
