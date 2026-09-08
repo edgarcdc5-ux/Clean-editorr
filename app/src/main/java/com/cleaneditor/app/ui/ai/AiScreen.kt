@@ -168,7 +168,7 @@ private fun ActionButton(
     OutlinedButton(
         enabled = !loading,
         onClick = onClick,
-        modifier = Modifier.weight(1f).testTag(tag)
+        modifier = Modifier.testTag(tag)
     ) {
         Text(if (selectedAction == action && loading) "…" else label)
     }
