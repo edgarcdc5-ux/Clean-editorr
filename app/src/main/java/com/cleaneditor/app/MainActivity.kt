@@ -41,23 +41,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             var currentTheme by remember { mutableStateOf(AppThemeSetting.DARK) }
             CleanEditorTheme(themeSetting = currentTheme) {
-                CleanEditorShell(
-                    currentTheme = currentTheme,
-                    onThemeChange = { currentTheme = it }
-                )
+                CleanEditorShell(currentTheme = currentTheme, onThemeChange = { currentTheme = it })
             }
         }
     }
 }
 
 @Composable
-private fun CleanEditorShell(
-    currentTheme: AppThemeSetting,
-    onThemeChange: (AppThemeSetting) -> Unit
-) {
-    var activeDestination by remember {
-        mutableStateOf<NavigationDestination>(NavigationDestination.Home)
-    }
+private fun CleanEditorShell(currentTheme: AppThemeSetting, onThemeChange: (AppThemeSetting) -> Unit) {
+    var activeDestination by remember { mutableStateOf<NavigationDestination>(NavigationDestination.Home) }
     var selectedFile by remember { mutableStateOf<FileItem?>(null) }
     var editorInitialText by remember { mutableStateOf<String?>(null) }
 
@@ -67,86 +59,45 @@ private fun CleanEditorShell(
         activeDestination = NavigationDestination.Editor
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         if (activeDestination == NavigationDestination.Editor) {
             EditorScreen(
-                onBack = {
-                    activeDestination = NavigationDestination.Home
-                    selectedFile = null
-                    editorInitialText = null
-                },
+                onBack = { activeDestination = NavigationDestination.Home; selectedFile = null; editorInitialText = null },
                 initialFile = selectedFile,
-                initialText = editorInitialText
+                initialText = editorInitialText,
+                onCreateReminder = { content ->
+                    editorInitialText = content
+                    activeDestination = NavigationDestination.Reminders
+                }
             )
         } else {
             Scaffold(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding(),
+                Modifier.fillMaxSize().statusBarsPadding(),
                 bottomBar = {
-                    NavigationBar(
-                        modifier = Modifier
-                            .navigationBarsPadding()
-                            .testTag("clean_editor_bottom_bar"),
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        tonalElevation = 6.dp
-                    ) {
+                    NavigationBar(Modifier.navigationBarsPadding().testTag("clean_editor_bottom_bar"), containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 6.dp) {
                         NavigationDestination.items.forEach { destination ->
                             val isSelected = activeDestination == destination
                             NavigationBarItem(
-                                modifier = Modifier.testTag(destination.testTag),
-                                selected = isSelected,
+                                modifier = Modifier.testTag(destination.testTag), selected = isSelected,
                                 onClick = { activeDestination = destination },
-                                icon = {
-                                    Icon(
-                                        imageVector = if (isSelected) destination.selectedIcon else destination.unselectedIcon,
-                                        contentDescription = stringResource(destination.labelRes)
-                                    )
-                                },
-                                label = {
-                                    Text(
-                                        text = stringResource(destination.labelRes),
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                }
+                                icon = { Icon(if (isSelected) destination.selectedIcon else destination.unselectedIcon, stringResource(destination.labelRes)) },
+                                label = { Text(stringResource(destination.labelRes), style = MaterialTheme.typography.labelSmall) }
                             )
                         }
                     }
                 }
             ) { innerPadding ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                ) {
+                Box(Modifier.fillMaxSize().padding(innerPadding)) {
                     when (activeDestination) {
                         NavigationDestination.Home -> HomeScreen(
-                            onNavigateTo = { destination ->
-                                if (destination == NavigationDestination.Editor) {
-                                    openEditor()
-                                } else {
-                                    activeDestination = destination
-                                }
-                            },
+                            onNavigateTo = { destination -> if (destination == NavigationDestination.Editor) openEditor() else activeDestination = destination },
                             onOpenEditor = { openEditor() }
                         )
-                        NavigationDestination.Files -> FilesScreen(
-                            onOpenFile = { file -> openEditor(file = file) }
-                        )
-                        NavigationDestination.Reminders -> RemindersScreen()
-                        NavigationDestination.Ai -> AiScreen(
-                            onOpenEditor = { response -> openEditor(text = response) }
-                        )
-                        NavigationDestination.Settings -> SettingsScreen(
-                            currentTheme = currentTheme,
-                            onThemeChange = onThemeChange
-                        )
-                        NavigationDestination.Editor -> {
-                            // Handled above in if-block
-                        }
+                        NavigationDestination.Files -> FilesScreen(onOpenFile = { file -> openEditor(file = file) })
+                        NavigationDestination.Reminders -> RemindersScreen(onOpenEditor = { text -> openEditor(text = text) })
+                        NavigationDestination.Ai -> AiScreen(onOpenEditor = { response -> openEditor(text = response) })
+                        NavigationDestination.Settings -> SettingsScreen(currentTheme = currentTheme, onThemeChange = onThemeChange)
+                        NavigationDestination.Editor -> Unit
                     }
                 }
             }
