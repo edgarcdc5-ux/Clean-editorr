@@ -19,6 +19,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +54,13 @@ fun AiScreen(onOpenEditor: (String) -> Unit = {}, modifier: Modifier = Modifier)
     var error by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var selectedAction by remember { mutableStateOf<AiAction?>(null) }
+
+    LaunchedEffect(Unit) {
+        val clipboardText = clipboard.getText()?.text.orEmpty()
+        if (clipboardText.isNotBlank()) {
+            prompt = clipboardText.take(GeminiService.MAX_PROMPT_CHARS)
+        }
+    }
 
     fun useClipboardText() {
         if (loading) return
