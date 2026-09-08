@@ -8,23 +8,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.cleaneditor.app.navigation.NavigationDestination
 import com.cleaneditor.app.theme.CleanEditorTheme
 import com.cleaneditor.app.ui.home.HomeScreen
 
@@ -41,8 +36,6 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun CleanEditorShellDiagnostic() {
-    var activeDestination by remember { mutableStateOf<NavigationDestination>(NavigationDestination.Home) }
-
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -55,32 +48,16 @@ private fun CleanEditorShellDiagnostic() {
                     containerColor = MaterialTheme.colorScheme.surface,
                     tonalElevation = 6.dp
                 ) {
-                    NavigationDestination.items.forEach { destination ->
-                        val isSelected = activeDestination == destination
-                        NavigationBarItem(
-                            selected = isSelected,
-                            onClick = { activeDestination = destination },
-                            icon = {
-                                Icon(
-                                    if (isSelected) destination.selectedIcon else destination.unselectedIcon,
-                                    stringResource(destination.labelRes)
-                                )
-                            },
-                            label = {
-                                Text(
-                                    stringResource(destination.labelRes),
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        )
-                    }
+                    NavigationBarItem(
+                        selected = true,
+                        onClick = { },
+                        icon = {
+                            Icon(Icons.Filled.Home, contentDescription = "Home")
+                        },
+                        label = {
+                            Text("Home", style = MaterialTheme.typography.labelSmall)
+                        }
+                    )
                 }
             }
         ) { innerPadding ->
