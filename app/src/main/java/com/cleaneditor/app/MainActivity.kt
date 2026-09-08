@@ -36,6 +36,7 @@ import com.cleaneditor.app.ui.files.FilesScreen
 import com.cleaneditor.app.ui.home.HomeScreen
 import com.cleaneditor.app.ui.reminders.RemindersScreen
 import com.cleaneditor.app.ui.settings.SettingsScreen
+import java.io.File
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,53 +44,34 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             var themeSetting by remember { mutableStateOf(AppThemeSetting.DARK) }
-            CleanEditorTheme(themeSetting = themeSetting) {
-                CleanEditorApp(currentTheme = themeSetting, onThemeChange = { themeSetting = it })
-            }
+            CleanEditorTheme(themeSetting = themeSetting) { CleanEditorApp(themeSetting, { themeSetting = it }) }
         }
     }
 }
 
 @Composable
-fun CleanEditorApp(
-    currentTheme: AppThemeSetting,
-    onThemeChange: (AppThemeSetting) -> Unit,
-    modifier: Modifier = Modifier
-) {
+fun CleanEditorApp(currentTheme: AppThemeSetting, onThemeChange: (AppThemeSetting) -> Unit, modifier: Modifier = Modifier) {
     var activeDestination by remember { mutableStateOf<NavigationDestination>(NavigationDestination.Home) }
     var editorOpen by remember { mutableStateOf(false) }
     var selectedFile by remember { mutableStateOf<FileItem?>(null) }
 
+    fun openAiResultInEditor(text: String) {
+        val file = File.createTempFile("cleaneditor_ai_", ".txt").apply { writeText(text, Charsets.UTF_8) }
+        selectedFile = FileItem("ai-${file.name}", file.name, file.absolutePath, false, file.length(), file.lastModified(), "txt", false)
+        editorOpen = true
+    }
+
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         if (editorOpen) {
-            EditorScreen(
-                onBack = { editorOpen = false; selectedFile = null },
-                initialFile = selectedFile
-            )
+            EditorScreen(onBack = { editorOpen = false; selectedFile = null }, initialFile = selectedFile)
         } else {
-            Scaffold(
-                modifier = Modifier.fillMaxSize().statusBarsPadding(),
-                bottomBar = {
-                    CleanEditorBottomBar(
-                        currentDestination = activeDestination,
-                        onDestinationSelected = { activeDestination = it }
-                    )
-                }
-            ) { innerPadding ->
-                Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            Scaffold(modifier = Modifier.fillMaxSize().statusBarsPadding(), bottomBar = { CleanEditorBottomBar(activeDestination) { activeDestination = it } }) { innerPadding ->
+                Box(Modifier.fillMaxSize().padding(innerPadding)) {
                     when (activeDestination) {
-                        NavigationDestination.Home -> HomeScreen(
-                            onNavigateTo = { destination ->
-                                if (destination == NavigationDestination.Editor) { selectedFile = null; editorOpen = true }
-                                else activeDestination = destination
-                            },
-                            onOpenEditor = { selectedFile = null; editorOpen = true }
-                        )
-                        NavigationDestination.Files -> FilesScreen(
-                            onOpenFile = { file -> selectedFile = file; editorOpen = true }
-                        )
+                        NavigationDestination.Home -> HomeScreen(onNavigateTo = { destination -> if (destination == NavigationDestination.Editor) { selectedFile = null; editorOpen = true } else activeDestination = destination }, onOpenEditor = { selectedFile = null; editorOpen = true })
+                        NavigationDestination.Files -> FilesScreen(onOpenFile = { file -> selectedFile = file; editorOpen = true })
                         NavigationDestination.Reminders -> RemindersScreen()
-                        NavigationDestination.Ai -> AiScreen()
+                        NavigationDestination.Ai -> AiScreen(onOpenEditor = ::openAiResultInEditor)
                         NavigationDestination.Settings -> SettingsScreen(currentTheme = currentTheme, onThemeChange = onThemeChange)
                         NavigationDestination.Editor -> { selectedFile = null; editorOpen = true }
                     }
@@ -100,31 +82,11 @@ fun CleanEditorApp(
 }
 
 @Composable
-private fun CleanEditorBottomBar(
-    currentDestination: NavigationDestination,
-    onDestinationSelected: (NavigationDestination) -> Unit
-) {
-    NavigationBar(
-        modifier = Modifier.navigationBarsPadding().testTag("clean_editor_bottom_bar"),
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 6.dp
-    ) {
+private fun CleanEditorBottomBar(currentDestination: NavigationDestination, onDestinationSelected: (NavigationDestination) -> Unit) {
+    NavigationBar(modifier = Modifier.navigationBarsPadding().testTag("clean_editor_bottom_bar"), containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 6.dp) {
         NavigationDestination.items.forEach { destination ->
             val isSelected = currentDestination == destination
-            NavigationBarItem(
-                modifier = Modifier.testTag(destination.testTag),
-                selected = isSelected,
-                onClick = { onDestinationSelected(destination) },
-                icon = { Icon(if (isSelected) destination.selectedIcon else destination.unselectedIcon, stringResource(destination.labelRes)) },
-                label = { Text(stringResource(destination.labelRes), style = MaterialTheme.typography.labelSmall) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            )
+            NavigationBarItem(modifier = Modifier.testTag(destination.testTag), selected = isSelected, onClick = { onDestinationSelected(destination) }, icon = { Icon(if (isSelected) destination.selectedIcon else destination.unselectedIcon, stringResource(destination.labelRes)) }, label = { Text(stringResource(destination.labelRes), style = MaterialTheme.typography.labelSmall) }, colors = NavigationBarItemDefaults.colors(selectedIconColor = MaterialTheme.colorScheme.primary, selectedTextColor = MaterialTheme.colorScheme.primary, indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f), unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant, unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant))
         }
     }
 }
