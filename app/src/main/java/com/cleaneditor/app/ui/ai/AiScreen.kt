@@ -55,6 +55,7 @@ fun AiScreen(onOpenEditor: (String) -> Unit = {}, modifier: Modifier = Modifier)
     var selectedAction by remember { mutableStateOf<AiAction?>(null) }
 
     fun useClipboardText() {
+        if (loading) return
         val text = clipboard.getText()?.text.orEmpty()
         if (text.isNotBlank()) { prompt = text.take(GeminiService.MAX_PROMPT_CHARS); response = ""; error = "" }
         else error = "A área de transferência está vazia. Selecione e copie um texto no editor primeiro."
@@ -65,6 +66,7 @@ fun AiScreen(onOpenEditor: (String) -> Unit = {}, modifier: Modifier = Modifier)
         while (history.size > 30) history.removeAt(history.lastIndex)
     }
     fun request(promptToSend: String, action: AiAction?) {
+        if (loading) return
         loading = true; response = ""; error = ""; selectedAction = action
         scope.launch {
             service.generate(promptToSend).onSuccess { response = it; saveHistory(action, promptToSend, it) }
@@ -73,13 +75,14 @@ fun AiScreen(onOpenEditor: (String) -> Unit = {}, modifier: Modifier = Modifier)
         }
     }
     fun runAction(action: AiAction) {
+        if (loading) return
         if (prompt.isBlank()) { error = "Informe ou cole um texto antes de usar uma ação de IA."; return }
         request(buildAiPrompt(action, prompt.trim()), action)
     }
 
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 16.dp).testTag("screen_ai"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         CleanEditorHeader(stringResource(R.string.ai_title), stringResource(R.string.ai_subtitle))
-        OutlinedButton(onClick = { useClipboardText() }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).testTag("ai_use_clipboard")) { Icon(Icons.Filled.ContentPaste, null); Text(stringResource(R.string.ai_use_clipboard), Modifier.padding(start = 8.dp)) }
+        OutlinedButton(enabled = !loading, onClick = { useClipboardText() }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).testTag("ai_use_clipboard")) { Icon(Icons.Filled.ContentPaste, null); Text(stringResource(R.string.ai_use_clipboard), Modifier.padding(start = 8.dp)) }
         OutlinedTextField(value = prompt, onValueChange = { prompt = it.take(GeminiService.MAX_PROMPT_CHARS); error = "" }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).testTag("ai_prompt_input"), minLines = 5, label = { Text(stringResource(R.string.ai_prompt_label)) }, placeholder = { Text(stringResource(R.string.ai_prompt_hint)) }, supportingText = { Text("${prompt.length}/${GeminiService.MAX_PROMPT_CHARS}") })
         Text(stringResource(R.string.ai_actions_title), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 16.dp))
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

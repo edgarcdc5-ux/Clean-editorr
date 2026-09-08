@@ -12,27 +12,53 @@ data class AiHistoryEntry(
 )
 
 class AiHistoryStore(context: Context) {
+    companion object {
+        const val KEY = "entries"
+        const val MAX_ENTRIES = 30
+
+        fun trimEntries(existing: List<AiHistoryEntry>, newEntry: AiHistoryEntry): List<AiHistoryEntry> =
+            (listOf(newEntry) + existing).take(MAX_ENTRIES)
+    }
+
     private val preferences = context.getSharedPreferences("ai_history", Context.MODE_PRIVATE)
-    private val key = "entries"
-    private val maxEntries = 30
 
     fun load(): List<AiHistoryEntry> = runCatching {
-        val array = JSONArray(preferences.getString(key, "[]"))
+        val array = JSONArray(preferences.getString(KEY, "[]"))
         buildList {
             for (index in 0 until array.length()) {
                 val item = array.optJSONObject(index) ?: continue
-                add(AiHistoryEntry(item.optLong("timestamp"), item.optString("action"), item.optString("prompt"), item.optString("response")))
+                add(
+                    AiHistoryEntry(
+                        timestamp = item.optLong("timestamp", System.currentTimeMillis()),
+                        action = item.optString("action", "GERAR"),
+                        prompt = item.optString("prompt", ""),
+                        response = item.optString("response", "")
+                    )
+                )
             }
         }
     }.getOrDefault(emptyList())
 
     fun add(entry: AiHistoryEntry) {
-        val array = JSONArray()
-        (listOf(entry) + load()).take(maxEntries).forEach { item ->
-            array.put(JSONObject().put("timestamp", item.timestamp).put("action", item.action).put("prompt", item.prompt).put("response", item.response))
+        runCatching {
+            val safeEntry = entry.copy(
+                prompt = entry.prompt.take(4000),
+                response = entry.response.take(10000)
+            )
+            val updated = trimEntries(load(), safeEntry)
+            val array = JSONArray()
+            updated.forEach { item ->
+                array.put(
+                    JSONObject()
+                        .put("timestamp", item.timestamp)
+                        .put("action", item.action)
+                        .put("prompt", item.prompt)
+                        .put("response", item.response)
+                )
+            }
+            preferences.edit().putString(KEY, array.toString()).apply()
         }
-        preferences.edit().putString(key, array.toString()).apply()
     }
 
-    fun clear() = preferences.edit().remove(key).apply()
+    fun clear() = runCatching { preferences.edit().remove(KEY).apply() }
 }

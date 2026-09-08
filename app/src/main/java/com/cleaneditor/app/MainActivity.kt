@@ -23,6 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -54,9 +55,10 @@ fun CleanEditorApp(currentTheme: AppThemeSetting, onThemeChange: (AppThemeSettin
     var activeDestination by remember { mutableStateOf<NavigationDestination>(NavigationDestination.Home) }
     var editorOpen by remember { mutableStateOf(false) }
     var selectedFile by remember { mutableStateOf<FileItem?>(null) }
+    val context = LocalContext.current
 
     fun openAiResultInEditor(text: String) {
-        val file = File.createTempFile("cleaneditor_ai_", ".txt").apply { writeText(text, Charsets.UTF_8) }
+        val file = File.createTempFile("cleaneditor_ai_", ".txt", context.cacheDir).apply { writeText(text, Charsets.UTF_8) }
         selectedFile = FileItem("ai-${file.name}", file.name, file.absolutePath, false, file.length(), file.lastModified(), "txt", false)
         editorOpen = true
     }

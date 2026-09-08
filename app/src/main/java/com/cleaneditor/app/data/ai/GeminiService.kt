@@ -20,7 +20,9 @@ class GeminiService {
             require(cleanPrompt.isNotEmpty()) { "Digite um texto antes de consultar a IA." }
             require(cleanPrompt.length <= MAX_PROMPT_CHARS) { "O texto é muito longo. Limite: $MAX_PROMPT_CHARS caracteres." }
             val apiKey = BuildConfig.GEMINI_API_KEY.trim()
-            require(apiKey.isNotEmpty()) { "Chave da API do Gemini não configurada." }
+            require(apiKey.isNotEmpty() && apiKey != "your_api_key_here" && !apiKey.contains("your_api_key")) {
+                "Chave da API do Gemini não configurada."
+            }
 
             val url = URL("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey")
             val connection = (url.openConnection() as HttpURLConnection).apply {
@@ -46,10 +48,7 @@ class GeminiService {
                         else -> "$detail (HTTP $code)"
                     })
                 }
-                val json = JSONObject(response)
-                val candidates = json.optJSONArray("candidates") ?: error("Resposta do Gemini sem candidatos.")
-                val text = candidates.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts")?.optJSONObject(0)?.optString("text")?.trim().orEmpty()
-                text.ifBlank { error("O Gemini retornou uma resposta vazia.") }
+                parseResponse(response).getOrThrow()
             } finally { connection.disconnect() }
         }.recoverCatching { throwable ->
             when (throwable) {
@@ -57,5 +56,12 @@ class GeminiService {
                 else -> throw throwable
             }
         }
+    }
+
+    fun parseResponse(response: String): Result<String> = runCatching {
+        val json = JSONObject(response)
+        val candidates = json.optJSONArray("candidates") ?: error("Resposta do Gemini sem candidatos.")
+        val text = candidates.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts")?.optJSONObject(0)?.optString("text")?.trim().orEmpty()
+        text.ifBlank { error("O Gemini retornou uma resposta vazia.") }
     }
 }
