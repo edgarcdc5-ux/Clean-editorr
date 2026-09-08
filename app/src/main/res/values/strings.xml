@@ -29,8 +29,11 @@
     <string name="reminders_empty_desc">O módulo de lembretes e tarefas independentes estará pronto para agendamentos e prioridades na próxima fase.</string>
 
     <string name="ai_title">Assistente de IA</string>
-    <string name="ai_empty_title">Seu assistente inteligente estará aqui</string>
-    <string name="ai_empty_desc">A integração segura e contextualizada com o Gemini será conectada na fase correspondente.</string>
+    <string name="ai_subtitle">Converse com o Gemini usando o contexto que você fornecer.</string>
+    <string name="ai_prompt_label">O que você precisa?</string>
+    <string name="ai_prompt_hint">Ex.: Resuma este texto, revise a escrita ou transforme em tarefas.</string>
+    <string name="ai_generate_button">Gerar resposta</string>
+    <string name="ai_response_title">Resposta da IA</string>
 
     <string name="settings_title">Configurações</string>
     <string name="settings_theme_title">Tema da Interface</string>
@@ -38,7 +41,7 @@
     <string name="settings_theme_light">Tema Claro</string>
     <string name="settings_theme_system">Seguir o Sistema</string>
     <string name="settings_about_title">Sobre o CleanEditor</string>
-    <string name="settings_version">Versão 1.0 (Fase 1 — Fundação)</string>
+    <string name="settings_version">Versão 1.0 (Fase 3 — IA)</string>
     <string name="settings_privacy_note">Privacidade: seus dados são mantidos localmente por padrão.</string>
 
     <string name="badge_phase1">Fase 1 • Fundação</string>
