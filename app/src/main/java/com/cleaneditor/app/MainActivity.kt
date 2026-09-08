@@ -59,6 +59,13 @@ private fun CleanEditorShell(
         mutableStateOf<NavigationDestination>(NavigationDestination.Home)
     }
     var selectedFile by remember { mutableStateOf<FileItem?>(null) }
+    var editorInitialText by remember { mutableStateOf<String?>(null) }
+
+    fun openEditor(text: String? = null, file: FileItem? = null) {
+        editorInitialText = text
+        selectedFile = file
+        activeDestination = NavigationDestination.Editor
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -69,8 +76,10 @@ private fun CleanEditorShell(
                 onBack = {
                     activeDestination = NavigationDestination.Home
                     selectedFile = null
+                    editorInitialText = null
                 },
-                initialFile = selectedFile
+                initialFile = selectedFile,
+                initialText = editorInitialText
             )
         } else {
             Scaffold(
@@ -93,11 +102,7 @@ private fun CleanEditorShell(
                                 onClick = { activeDestination = destination },
                                 icon = {
                                     Icon(
-                                        imageVector = if (isSelected) {
-                                            destination.selectedIcon
-                                        } else {
-                                            destination.unselectedIcon
-                                        },
+                                        imageVector = if (isSelected) destination.selectedIcon else destination.unselectedIcon,
                                         contentDescription = stringResource(destination.labelRes)
                                     )
                                 },
@@ -121,29 +126,19 @@ private fun CleanEditorShell(
                         NavigationDestination.Home -> HomeScreen(
                             onNavigateTo = { destination ->
                                 if (destination == NavigationDestination.Editor) {
-                                    selectedFile = null
-                                    activeDestination = NavigationDestination.Editor
+                                    openEditor()
                                 } else {
                                     activeDestination = destination
                                 }
                             },
-                            onOpenEditor = {
-                                selectedFile = null
-                                activeDestination = NavigationDestination.Editor
-                            }
+                            onOpenEditor = { openEditor() }
                         )
                         NavigationDestination.Files -> FilesScreen(
-                            onOpenFile = { file ->
-                                selectedFile = file
-                                activeDestination = NavigationDestination.Editor
-                            }
+                            onOpenFile = { file -> openEditor(file = file) }
                         )
                         NavigationDestination.Reminders -> RemindersScreen()
                         NavigationDestination.Ai -> AiScreen(
-                            onOpenEditor = { _ ->
-                                selectedFile = null
-                                activeDestination = NavigationDestination.Editor
-                            }
+                            onOpenEditor = { response -> openEditor(text = response) }
                         )
                         NavigationDestination.Settings -> SettingsScreen(
                             currentTheme = currentTheme,
