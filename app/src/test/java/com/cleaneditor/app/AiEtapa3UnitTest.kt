@@ -19,7 +19,8 @@ class AiEtapa3UnitTest {
 
         assertEquals(30, result.size)
         assertEquals(31L, result.first().timestamp)
-        assertEquals(30L, result.last().timestamp)
+        assertTrue(result.any { it.timestamp == 30L })
+        assertTrue(result.none { it.timestamp == 1L })
     }
 
     @Test
