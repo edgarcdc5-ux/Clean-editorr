@@ -8,6 +8,17 @@ import org.junit.Test
 class NavigationUnitTest {
 
     @Test
+    fun verifyHomeFirst() {
+        val h = NavigationDestination.Home
+        println("Home is: $h")
+        println("Items: ${NavigationDestination.items}")
+        for (item in NavigationDestination.items) {
+            println("Item: $item")
+            assertNotNull(item)
+        }
+    }
+
+    @Test
     fun verifyNavigationDestinations() {
         val items = NavigationDestination.items
         assertEquals(5, items.size)

@@ -21,81 +21,139 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.cleaneditor.app.data.model.FileItem
 import com.cleaneditor.app.navigation.NavigationDestination
+import com.cleaneditor.app.theme.AppThemeSetting
 import com.cleaneditor.app.theme.CleanEditorTheme
+import com.cleaneditor.app.ui.ai.AiScreen
+import com.cleaneditor.app.ui.editor.EditorScreen
+import com.cleaneditor.app.ui.files.FilesScreen
 import com.cleaneditor.app.ui.home.HomeScreen
+import com.cleaneditor.app.ui.reminders.RemindersScreen
+import com.cleaneditor.app.ui.settings.SettingsScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            CleanEditorTheme {
-                CleanEditorShell()
+            var currentTheme by remember { mutableStateOf(AppThemeSetting.DARK) }
+            CleanEditorTheme(themeSetting = currentTheme) {
+                CleanEditorShell(
+                    currentTheme = currentTheme,
+                    onThemeChange = { currentTheme = it }
+                )
             }
         }
     }
 }
 
 @Composable
-private fun CleanEditorShell() {
+private fun CleanEditorShell(
+    currentTheme: AppThemeSetting,
+    onThemeChange: (AppThemeSetting) -> Unit
+) {
     var activeDestination by remember {
         mutableStateOf<NavigationDestination>(NavigationDestination.Home)
     }
+    var selectedFile by remember { mutableStateOf<FileItem?>(null) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Scaffold(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
-            bottomBar = {
-                NavigationBar(
-                    modifier = Modifier.navigationBarsPadding(),
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 6.dp
-                ) {
-                    val destination = NavigationDestination.Home
-                    val isSelected = activeDestination == destination
-                    NavigationBarItem(
-                        selected = isSelected,
-                        onClick = { activeDestination = destination },
-                        icon = {
-                            Icon(
-                                imageVector = if (isSelected) {
-                                    destination.selectedIcon
-                                } else {
-                                    destination.unselectedIcon
-                                },
-                                contentDescription = stringResource(destination.labelRes)
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = stringResource(destination.labelRes),
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
-                    )
-                }
-            }
-        ) { innerPadding ->
-            Box(
+        if (activeDestination == NavigationDestination.Editor) {
+            EditorScreen(
+                onBack = {
+                    activeDestination = NavigationDestination.Home
+                    selectedFile = null
+                },
+                initialFile = selectedFile
+            )
+        } else {
+            Scaffold(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                HomeScreen(
-                    onNavigateTo = { destination ->
-                        activeDestination = destination
-                    },
-                    onOpenEditor = {
-                        activeDestination = NavigationDestination.Editor
+                    .statusBarsPadding(),
+                bottomBar = {
+                    NavigationBar(
+                        modifier = Modifier
+                            .navigationBarsPadding()
+                            .testTag("clean_editor_bottom_bar"),
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 6.dp
+                    ) {
+                        NavigationDestination.items.forEach { destination ->
+                            val isSelected = activeDestination == destination
+                            NavigationBarItem(
+                                modifier = Modifier.testTag(destination.testTag),
+                                selected = isSelected,
+                                onClick = { activeDestination = destination },
+                                icon = {
+                                    Icon(
+                                        imageVector = if (isSelected) {
+                                            destination.selectedIcon
+                                        } else {
+                                            destination.unselectedIcon
+                                        },
+                                        contentDescription = stringResource(destination.labelRes)
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = stringResource(destination.labelRes),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            )
+                        }
                     }
-                )
+                }
+            ) { innerPadding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                ) {
+                    when (activeDestination) {
+                        NavigationDestination.Home -> HomeScreen(
+                            onNavigateTo = { destination ->
+                                if (destination == NavigationDestination.Editor) {
+                                    selectedFile = null
+                                    activeDestination = NavigationDestination.Editor
+                                } else {
+                                    activeDestination = destination
+                                }
+                            },
+                            onOpenEditor = {
+                                selectedFile = null
+                                activeDestination = NavigationDestination.Editor
+                            }
+                        )
+                        NavigationDestination.Files -> FilesScreen(
+                            onOpenFile = { file ->
+                                selectedFile = file
+                                activeDestination = NavigationDestination.Editor
+                            }
+                        )
+                        NavigationDestination.Reminders -> RemindersScreen()
+                        NavigationDestination.Ai -> AiScreen(
+                            onOpenEditor = { _ ->
+                                selectedFile = null
+                                activeDestination = NavigationDestination.Editor
+                            }
+                        )
+                        NavigationDestination.Settings -> SettingsScreen(
+                            currentTheme = currentTheme,
+                            onThemeChange = onThemeChange
+                        )
+                        NavigationDestination.Editor -> {
+                            // Handled above in if-block
+                        }
+                    }
+                }
             }
         }
     }

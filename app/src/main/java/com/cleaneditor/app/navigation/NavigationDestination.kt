@@ -32,6 +32,7 @@ sealed class NavigationDestination(
     data object Editor : NavigationDestination("editor", R.string.module_editor_name, Icons.Filled.EditNote, Icons.Outlined.EditNote, "nav_item_editor")
 
     companion object {
-        val items = listOf(Home, Files, Reminders, Ai, Settings)
+        val items: List<NavigationDestination>
+            get() = listOf(Home, Files, Reminders, Ai, Settings)
     }
 }
