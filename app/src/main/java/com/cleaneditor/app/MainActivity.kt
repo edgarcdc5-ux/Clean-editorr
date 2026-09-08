@@ -58,29 +58,28 @@ private fun CleanEditorShell() {
                     containerColor = MaterialTheme.colorScheme.surface,
                     tonalElevation = 6.dp
                 ) {
-                    NavigationDestination.items.forEach { destination ->
-                        val isSelected = activeDestination == destination
-                        NavigationBarItem(
-                            selected = isSelected,
-                            onClick = { activeDestination = destination },
-                            icon = {
-                                Icon(
-                                    imageVector = if (isSelected) {
-                                        destination.selectedIcon
-                                    } else {
-                                        destination.unselectedIcon
-                                    },
-                                    contentDescription = stringResource(destination.labelRes)
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = stringResource(destination.labelRes),
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
-                        )
-                    }
+                    val destination = NavigationDestination.Home
+                    val isSelected = activeDestination == destination
+                    NavigationBarItem(
+                        selected = isSelected,
+                        onClick = { activeDestination = destination },
+                        icon = {
+                            Icon(
+                                imageVector = if (isSelected) {
+                                    destination.selectedIcon
+                                } else {
+                                    destination.unselectedIcon
+                                },
+                                contentDescription = stringResource(destination.labelRes)
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = stringResource(destination.labelRes),
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    )
                 }
             }
         ) { innerPadding ->
