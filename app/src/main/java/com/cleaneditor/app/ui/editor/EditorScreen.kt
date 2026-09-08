@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.FormatIndentDecrease
 import androidx.compose.material.icons.filled.FormatIndentIncrease
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Redo
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SaveAs
@@ -89,7 +90,13 @@ private fun queryFileName(context: Context, uri: Uri): String {
 }
 
 @Composable
-fun EditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier, initialFile: FileItem? = null, initialText: String? = null) {
+fun EditorScreen(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    initialFile: FileItem? = null,
+    initialText: String? = null,
+    onCreateReminder: (String) -> Unit = {}
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
@@ -120,14 +127,7 @@ fun EditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier, initialFile:
 
     LaunchedEffect(initialFile?.path, initialText) {
         if (!initialText.isNullOrEmpty()) {
-            currentUri = null
-            currentInternalFile = null
-            currentFileName = "Resultado IA.txt"
-            savedText = ""
-            setEditorValue(TextFieldValue(initialText), false)
-            undoStack.clear()
-            redoStack.clear()
-            return@LaunchedEffect
+            currentUri = null; currentInternalFile = null; currentFileName = "Resultado IA.txt"; savedText = ""; setEditorValue(TextFieldValue(initialText), false); undoStack.clear(); redoStack.clear(); return@LaunchedEffect
         }
         val file = initialFile?.file ?: return@LaunchedEffect
         try { val content = withContext(Dispatchers.IO) { file.readText(Charsets.UTF_8) }; currentInternalFile = file; currentUri = null; currentFileName = file.name; savedText = content; setEditorValue(TextFieldValue(content), false); undoStack.clear(); redoStack.clear() }
@@ -169,6 +169,7 @@ fun EditorScreen(onBack: () -> Unit, modifier: Modifier = Modifier, initialFile:
                     IconButton(onClick = { guarded { openDocumentLauncher.launch(arrayOf("text/*", "application/json", "application/xml", "*/*")) } }, modifier = Modifier.testTag("btn_editor_open")) { Icon(Icons.Filled.FolderOpen, "Abrir") }
                     IconButton(onClick = { saveDirectly() }, modifier = Modifier.testTag("btn_editor_save")) { Icon(Icons.Filled.Save, "Salvar") }
                     IconButton(onClick = { createDocumentLauncher.launch(currentFileName) }, modifier = Modifier.testTag("btn_editor_save_as")) { Icon(Icons.Filled.SaveAs, "Salvar como") }
+                    IconButton(onClick = { onCreateReminder(value.text) }, enabled = value.text.isNotBlank(), modifier = Modifier.testTag("btn_editor_create_reminder")) { Icon(Icons.Filled.NotificationsActive, "Criar lembrete") }
                     IconButton(enabled = undoStack.isNotEmpty(), onClick = { if (undoStack.isNotEmpty()) { redoStack.add(value); value = undoStack.removeAt(undoStack.lastIndex) } }, modifier = Modifier.testTag("btn_editor_undo")) { Icon(Icons.Filled.Undo, "Desfazer") }
                     IconButton(enabled = redoStack.isNotEmpty(), onClick = { if (redoStack.isNotEmpty()) { undoStack.add(value); value = redoStack.removeAt(redoStack.lastIndex) } }, modifier = Modifier.testTag("btn_editor_redo")) { Icon(Icons.Filled.Redo, "Refazer") }
                     IconButton(onClick = { val a=value.selection.min; val b=value.selection.max; if (a != b) clipboard.setText(AnnotatedString(value.text.substring(a,b))) }, modifier = Modifier.testTag("btn_editor_copy")) { Icon(Icons.Filled.ContentCopy, "Copiar") }
