@@ -15,8 +15,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -46,6 +46,7 @@ import com.cleaneditor.app.data.repository.ReminderRepository
 import com.cleaneditor.app.ui.shared.CleanEditorHeader
 
 private val priorities = listOf("Baixa", "Média", "Alta")
+private val statusFilters = listOf("Todos", "Pendentes", "Concluídos")
 
 @Composable
 fun RemindersScreen(
@@ -61,6 +62,8 @@ fun RemindersScreen(
     var creating by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<Reminder?>(null) }
     var formInitialContent by remember { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf("") }
+    var statusFilter by remember { mutableStateOf("Todos") }
 
     LaunchedEffect(initialContent) {
         if (initialContent != null) {
@@ -69,88 +72,270 @@ fun RemindersScreen(
             onDraftConsumed()
         }
     }
+
     fun refresh() { reminders = repository.getAll() }
 
     if (creating || editing != null) {
-        ReminderEditorForm(editing, formInitialContent, { creating = false; editing = null; formInitialContent = "" }, { item -> repository.save(item); refresh(); creating = false; editing = null; formInitialContent = "" })
+        ReminderEditorForm(
+            editing,
+            formInitialContent,
+            { creating = false; editing = null; formInitialContent = "" },
+            { item ->
+                repository.save(item)
+                refresh()
+                creating = false
+                editing = null
+                formInitialContent = ""
+            }
+        )
         return
     }
 
-    Scaffold(modifier = modifier.fillMaxSize().testTag("screen_reminders"), floatingActionButton = {
-        FloatingActionButton(onClick = { formInitialContent = ""; creating = true }, modifier = Modifier.testTag("btn_reminder_add")) { Icon(Icons.Filled.Add, "Novo lembrete") }
-    }) { padding ->
+    val filtered = reminders
+        .filter { item ->
+            val query = searchQuery.trim()
+            query.isBlank() || listOf(item.title, item.content, item.category, item.priority, item.date)
+                .any { it.contains(query, ignoreCase = true) }
+        }
+        .filter { item ->
+            when (statusFilter) {
+                "Pendentes" -> !item.completed
+                "Concluídos" -> item.completed
+                else -> true
+            }
+        }
+        .sortedWith(
+            compareBy<Reminder> { it.completed }
+                .thenBy { it.date.ifBlank { "9999-99-99" } }
+                .thenByDescending { priorities.indexOf(it.priority) }
+        )
+
+    Scaffold(
+        modifier = modifier.fillMaxSize().testTag("screen_reminders"),
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { formInitialContent = ""; creating = true },
+                modifier = Modifier.testTag("btn_reminder_add")
+            ) { Icon(Icons.Filled.Add, "Novo lembrete") }
+        }
+    ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            CleanEditorHeader(title = "Lembretes & Tarefas", subtitle = "Persistentes, organizados por data, prioridade e categoria")
+            CleanEditorHeader(
+                title = "Lembretes & Tarefas",
+                subtitle = "Persistentes, organizados por data, prioridade e categoria"
+            )
+
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).testTag("reminder_search"),
+                label = { Text("Pesquisar lembretes") },
+                singleLine = true
+            )
+
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                statusFilters.forEach { filter ->
+                    TextButton(
+                        onClick = { statusFilter = filter },
+                        modifier = Modifier.testTag("reminder_filter_${filter.lowercase()}")
+                    ) {
+                        Text(if (statusFilter == filter) "✓ $filter" else filter)
+                    }
+                }
+            }
+
             if (reminders.isEmpty()) {
-                Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    Modifier.fillMaxWidth().padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Icon(Icons.Filled.NotificationsActive, null, modifier = Modifier.padding(8.dp))
                     Text("Nenhum lembrete criado", style = MaterialTheme.typography.titleMedium)
                     Text("Crie um lembrete para começar.", modifier = Modifier.padding(top = 6.dp))
                 }
+            } else if (filtered.isEmpty()) {
+                Column(
+                    Modifier.fillMaxWidth().padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("Nenhum resultado", style = MaterialTheme.typography.titleMedium)
+                    Text("Tente outra pesquisa ou filtro.", modifier = Modifier.padding(top = 6.dp))
+                }
             } else {
-                val sorted = reminders.sortedWith(compareBy<Reminder> { it.completed }.thenBy { it.date.ifBlank { "9999-99-99" } }.thenByDescending { priorities.indexOf(it.priority) })
-                LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(sorted, key = { it.id }) { item ->
-                        ReminderCard(item, { repository.setCompleted(item.id, !item.completed); refresh() }, { editing = item }, { deleteTarget = item }, { onOpenEditor(item.content) })
+                LazyColumn(
+                    Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(filtered, key = { it.id }) { item ->
+                        ReminderCard(
+                            item,
+                            { repository.setCompleted(item.id, !item.completed); refresh() },
+                            { editing = item },
+                            { deleteTarget = item },
+                            { onOpenEditor(item.content) }
+                        )
                     }
                     item { Spacer(Modifier.height(72.dp)) }
                 }
             }
         }
     }
+
     deleteTarget?.let { item ->
-        AlertDialog(onDismissRequest = { deleteTarget = null }, title = { Text("Excluir lembrete?") }, text = { Text("\"${item.title}\" será removido permanentemente deste dispositivo.") }, confirmButton = { TextButton(onClick = { repository.delete(item.id); deleteTarget = null; refresh() }) { Text("Excluir") } }, dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Cancelar") } })
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("Excluir lembrete?") },
+            text = { Text("\"${item.title}\" será removido permanentemente deste dispositivo.") },
+            confirmButton = {
+                TextButton(onClick = { repository.delete(item.id); deleteTarget = null; refresh() }) {
+                    Text("Excluir")
+                }
+            },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Cancelar") } }
+        )
     }
 }
 
 @Composable
-private fun ReminderCard(item: Reminder, onToggle: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, onOpenEditor: () -> Unit) {
+private fun ReminderCard(
+    item: Reminder,
+    onToggle: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onOpenEditor: () -> Unit
+) {
     Card(Modifier.fillMaxWidth().testTag("reminder_${item.id}")) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = item.completed, onCheckedChange = { onToggle() }, modifier = Modifier.testTag("reminder_check_${item.id}"))
+                Checkbox(
+                    checked = item.completed,
+                    onCheckedChange = { onToggle() },
+                    modifier = Modifier.testTag("reminder_check_${item.id}")
+                )
                 Column(Modifier.weight(1f)) {
-                    Text(item.title.ifBlank { "Sem título" }, style = MaterialTheme.typography.titleMedium, textDecoration = if (item.completed) TextDecoration.LineThrough else null)
-                    Text("${item.date.ifBlank { "Sem data" }} • ${item.priority} • ${item.category.ifBlank { "Geral" }}", style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        item.title.ifBlank { "Sem título" },
+                        style = MaterialTheme.typography.titleMedium,
+                        textDecoration = if (item.completed) TextDecoration.LineThrough else null
+                    )
+                    Text(
+                        "${item.date.ifBlank { "Sem data" }} • ${item.priority} • ${item.category.ifBlank { "Geral" }}",
+                        style = MaterialTheme.typography.labelMedium
+                    )
                 }
-                IconButton(onClick = onEdit, modifier = Modifier.testTag("reminder_edit_${item.id}")) { Icon(Icons.Filled.Edit, "Editar") }
-                IconButton(onClick = onDelete, modifier = Modifier.testTag("reminder_delete_${item.id}")) { Icon(Icons.Filled.Delete, "Excluir") }
+                IconButton(onClick = onEdit, modifier = Modifier.testTag("reminder_edit_${item.id}")) {
+                    Icon(Icons.Filled.Edit, "Editar")
+                }
+                IconButton(onClick = onDelete, modifier = Modifier.testTag("reminder_delete_${item.id}")) {
+                    Icon(Icons.Filled.Delete, "Excluir")
+                }
             }
             if (item.content.isNotBlank()) {
                 Text(item.content, Modifier.padding(start = 12.dp, top = 4.dp, end = 12.dp), maxLines = 4)
-                TextButton(onClick = onOpenEditor, modifier = Modifier.testTag("reminder_open_editor_${item.id}")) { Icon(Icons.Filled.OpenInNew, null); Text("Abrir conteúdo no editor") }
+                TextButton(onClick = onOpenEditor, modifier = Modifier.testTag("reminder_open_editor_${item.id}")) {
+                    Icon(Icons.Filled.OpenInNew, null)
+                    Text("Abrir conteúdo no editor")
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ReminderEditorForm(initial: Reminder?, initialContent: String, onCancel: () -> Unit, onSave: (Reminder) -> Unit) {
+private fun ReminderEditorForm(
+    initial: Reminder?,
+    initialContent: String,
+    onCancel: () -> Unit,
+    onSave: (Reminder) -> Unit
+) {
     var title by remember(initial?.id, initialContent) { mutableStateOf(initial?.title.orEmpty()) }
     var content by remember(initial?.id, initialContent) { mutableStateOf(initial?.content ?: initialContent) }
     var date by remember(initial?.id) { mutableStateOf(initial?.date.orEmpty()) }
     var priority by remember(initial?.id) { mutableStateOf(initial?.priority ?: "Média") }
     var category by remember(initial?.id) { mutableStateOf(initial?.category ?: "Geral") }
     val valid = title.isNotBlank()
+
     Column(Modifier.fillMaxSize().padding(16.dp).testTag("screen_reminder_form")) {
-        CleanEditorHeader(title = if (initial == null) "Novo lembrete" else "Editar lembrete", subtitle = "Todos os campos ficam salvos localmente")
-        OutlinedTextField(title, { title = it }, Modifier.fillMaxWidth().testTag("reminder_title"), label = { Text("Título") }, singleLine = true)
+        CleanEditorHeader(
+            title = if (initial == null) "Novo lembrete" else "Editar lembrete",
+            subtitle = "Todos os campos ficam salvos localmente"
+        )
+        OutlinedTextField(
+            title,
+            { title = it },
+            Modifier.fillMaxWidth().testTag("reminder_title"),
+            label = { Text("Título") },
+            singleLine = true
+        )
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(content, { content = it }, Modifier.fillMaxWidth().height(150.dp).testTag("reminder_content"), label = { Text("Conteúdo") })
+        OutlinedTextField(
+            content,
+            { content = it },
+            Modifier.fillMaxWidth().height(150.dp).testTag("reminder_content"),
+            label = { Text("Conteúdo") }
+        )
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(date, { date = it }, Modifier.fillMaxWidth().testTag("reminder_date"), label = { Text("Data (AAAA-MM-DD)") }, singleLine = true)
+        OutlinedTextField(
+            date,
+            { date = it },
+            Modifier.fillMaxWidth().testTag("reminder_date"),
+            label = { Text("Data (AAAA-MM-DD)") },
+            singleLine = true
+        )
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(category, { category = it }, Modifier.fillMaxWidth().testTag("reminder_category"), label = { Text("Categoria") }, singleLine = true)
+        OutlinedTextField(
+            category,
+            { category = it },
+            Modifier.fillMaxWidth().testTag("reminder_category"),
+            label = { Text("Categoria") },
+            singleLine = true
+        )
         Spacer(Modifier.height(8.dp))
         Text("Prioridade", style = MaterialTheme.typography.labelLarge)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { priorities.forEach { value -> TextButton(onClick = { priority = value }, modifier = Modifier.testTag("priority_$value")) { Text(if (priority == value) "✓ $value" else value) } } }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            priorities.forEach { value ->
+                TextButton(
+                    onClick = { priority = value },
+                    modifier = Modifier.testTag("priority_$value")
+                ) { Text(if (priority == value) "✓ $value" else value) }
+            }
+        }
         Spacer(Modifier.weight(1f))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             TextButton(onClick = onCancel) { Text("Cancelar") }
-            Button(enabled = valid, onClick = {
-                val now = System.currentTimeMillis()
-                onSave(initial?.copy(title = title.trim(), content = content, date = date.trim(), priority = priority, category = category.trim(), updatedAt = now) ?: Reminder(now, title.trim(), content, date.trim(), priority, category.trim(), false, now, now))
-            }, modifier = Modifier.testTag("btn_reminder_save")) { Icon(Icons.Filled.Check, null); Text("Salvar") }
+            Button(
+                enabled = valid,
+                onClick = {
+                    val now = System.currentTimeMillis()
+                    onSave(
+                        initial?.copy(
+                            title = title.trim(),
+                            content = content,
+                            date = date.trim(),
+                            priority = priority,
+                            category = category.trim(),
+                            updatedAt = now
+                        ) ?: Reminder(
+                            now,
+                            title.trim(),
+                            content,
+                            date.trim(),
+                            priority,
+                            category.trim(),
+                            false,
+                            now,
+                            now
+                        )
+                    )
+                },
+                modifier = Modifier.testTag("btn_reminder_save")
+            ) {
+                Icon(Icons.Filled.Check, null)
+                Text("Salvar")
+            }
         }
     }
 }
