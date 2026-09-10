@@ -17,6 +17,15 @@
 - [ ] Revisar permissões e versão final
 - [ ] Gerar checksum SHA-256 do APK final
 
+## Versionamento Android
+
+O `versionCode` atual é obtido de `GITHUB_RUN_NUMBER` nos builds do CI e usa
+`1` fora do GitHub Actions. Antes de distribuir uma versão de release, mantenha
+o `versionCode` estritamente maior que o maior APK já distribuído. Recomenda-se
+centralizar esse número no processo de release (ou em uma propriedade de build)
+caso sejam usados builds fora do CI, sem redefini-lo arbitrariamente nesta
+correção de assinatura.
+
 ## Segurança da chave Gemini
 A chave usada pelo cliente Android pode ser extraída de um APK. Para produção, prefira um backend que mantenha a credencial fora do aplicativo e encaminhe somente as solicitações necessárias para a API.
 

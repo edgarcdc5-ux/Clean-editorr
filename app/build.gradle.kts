@@ -4,7 +4,23 @@ plugins {
     alias(libs.plugins.secrets)
 }
 
-val ciDebugKeystore = rootProject.file("app/ci-debug.keystore")
+val ciDebugKeystorePath = providers.environmentVariable("CI_DEBUG_KEYSTORE").orNull
+val ciDebugStorePassword = providers.environmentVariable("CLEANEDITOR_KEYSTORE_PASSWORD").orNull
+val ciDebugKeyAlias = providers.environmentVariable("CLEANEDITOR_KEY_ALIAS").orNull
+val ciDebugKeyPassword = providers.environmentVariable("CLEANEDITOR_KEY_PASSWORD").orNull
+val ciDebugSigningValues = listOf(
+    ciDebugKeystorePath,
+    ciDebugStorePassword,
+    ciDebugKeyAlias,
+    ciDebugKeyPassword,
+)
+val isCiDebugSigningConfigured = ciDebugSigningValues.any { !it.isNullOrBlank() }
+
+if (isCiDebugSigningConfigured) {
+    require(ciDebugSigningValues.all { !it.isNullOrBlank() }) {
+        "CI debug signing requires CI_DEBUG_KEYSTORE and all CLEANEDITOR_KEY* environment variables."
+    }
+}
 val ciVersionCode = System.getenv("GITHUB_RUN_NUMBER")
     ?.toIntOrNull()
     ?.takeIf { it > 0 }
@@ -25,20 +41,25 @@ android {
     }
 
     signingConfigs {
-        if (ciDebugKeystore.exists()) {
+        if (isCiDebugSigningConfigured) {
+            val ciDebugKeystore = file(checkNotNull(ciDebugKeystorePath))
+            require(ciDebugKeystore.isFile) {
+                "CI debug keystore does not exist: ${ciDebugKeystore.absolutePath}"
+            }
+
             create("ciDebug") {
                 storeFile = ciDebugKeystore
-                storePassword = "cleaneditor-debug"
-                keyAlias = "cleaneditordebug"
-                keyPassword = "cleaneditor-debug"
+                storePassword = checkNotNull(ciDebugStorePassword)
+                keyAlias = checkNotNull(ciDebugKeyAlias)
+                keyPassword = checkNotNull(ciDebugKeyPassword)
             }
         }
     }
 
     buildTypes {
         debug {
-            // CI provides a stable debug keystore so APKs can be installed as updates.
-            if (ciDebugKeystore.exists()) {
+            // CI provides a stable keystore via GitHub Actions secrets.
+            if (isCiDebugSigningConfigured) {
                 signingConfig = signingConfigs.getByName("ciDebug")
             }
         }

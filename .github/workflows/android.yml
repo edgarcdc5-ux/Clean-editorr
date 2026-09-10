@@ -37,14 +37,63 @@ jobs:
           fi
           printf 'GEMINI_API_KEY=%s\n' "$GEMINI_API_KEY" > .env
 
+      - name: Create temporary debug signing keystore
+        env:
+          CLEANEDITOR_KEYSTORE_BASE64: ${{ secrets.CLEANEDITOR_KEYSTORE_BASE64 }}
+          CLEANEDITOR_KEYSTORE_PASSWORD: ${{ secrets.CLEANEDITOR_KEYSTORE_PASSWORD }}
+          CLEANEDITOR_KEY_ALIAS: ${{ secrets.CLEANEDITOR_KEY_ALIAS }}
+          CLEANEDITOR_KEY_PASSWORD: ${{ secrets.CLEANEDITOR_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CLEANEDITOR_KEYSTORE_BASE64" ] || [ -z "$CLEANEDITOR_KEYSTORE_PASSWORD" ] || [ -z "$CLEANEDITOR_KEY_ALIAS" ] || [ -z "$CLEANEDITOR_KEY_PASSWORD" ]; then
+            echo "CleanEditor debug signing secrets are not configured for this repository."
+            exit 1
+          fi
+          umask 077
+          keystore_path="$RUNNER_TEMP/cleaneditor-debug.keystore"
+          temporary_path="$keystore_path.tmp"
+          trap 'rm -f "$temporary_path"' EXIT
+          printf '%s' "$CLEANEDITOR_KEYSTORE_BASE64" | base64 --decode > "$temporary_path"
+          test -s "$temporary_path"
+          mv "$temporary_path" "$keystore_path"
+
       - name: Run unit tests
         run: gradle test --no-daemon
 
       - name: Build debug APK
+        env:
+          CI_DEBUG_KEYSTORE: ${{ runner.temp }}/cleaneditor-debug.keystore
+          CLEANEDITOR_KEYSTORE_PASSWORD: ${{ secrets.CLEANEDITOR_KEYSTORE_PASSWORD }}
+          CLEANEDITOR_KEY_ALIAS: ${{ secrets.CLEANEDITOR_KEY_ALIAS }}
+          CLEANEDITOR_KEY_PASSWORD: ${{ secrets.CLEANEDITOR_KEY_PASSWORD }}
         run: gradle assembleDebug --no-daemon
+
+      - name: Run debug lint
+        env:
+          CI_DEBUG_KEYSTORE: ${{ runner.temp }}/cleaneditor-debug.keystore
+          CLEANEDITOR_KEYSTORE_PASSWORD: ${{ secrets.CLEANEDITOR_KEYSTORE_PASSWORD }}
+          CLEANEDITOR_KEY_ALIAS: ${{ secrets.CLEANEDITOR_KEY_ALIAS }}
+          CLEANEDITOR_KEY_PASSWORD: ${{ secrets.CLEANEDITOR_KEY_PASSWORD }}
+        run: gradle lintDebug --no-daemon
 
       - name: Verify debug APK exists
         run: test -f app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Verify debug APK signature matches the stable keystore
+        env:
+          CLEANEDITOR_KEYSTORE_PASSWORD: ${{ secrets.CLEANEDITOR_KEYSTORE_PASSWORD }}
+          CLEANEDITOR_KEY_ALIAS: ${{ secrets.CLEANEDITOR_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -n "$APKSIGNER"
+          apk_path="app/build/outputs/apk/debug/app-debug.apk"
+          keystore_path="$RUNNER_TEMP/cleaneditor-debug.keystore"
+          "$APKSIGNER" verify --verbose --print-certs "$apk_path"
+          keystore_sha256="$(keytool -list -v -keystore "$keystore_path" -storepass:env CLEANEDITOR_KEYSTORE_PASSWORD -alias "$CLEANEDITOR_KEY_ALIAS" | awk -F': ' '/SHA256:/{ print $2; exit }')"
+          apk_sha256="$("$APKSIGNER" verify --print-certs "$apk_path" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/{ print $2; exit }')"
+          test -n "$keystore_sha256"
+          test "$apk_sha256" = "$keystore_sha256"
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -53,6 +102,6 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
-      - name: Remove Gemini API key file
+      - name: Remove temporary secret files
         if: always()
-        run: rm -f .env
+        run: rm -f .env "$RUNNER_TEMP/cleaneditor-debug.keystore" "$RUNNER_TEMP/cleaneditor-debug.keystore.tmp"

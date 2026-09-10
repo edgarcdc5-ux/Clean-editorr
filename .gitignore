@@ -6,6 +6,10 @@
 build/
 */build/
 local.properties
+# Temporary CI signing material. The workflow recreates it from GitHub Actions secrets.
+*.keystore
+*.jks
+*.p12
 
 # IDE
 .idea/
