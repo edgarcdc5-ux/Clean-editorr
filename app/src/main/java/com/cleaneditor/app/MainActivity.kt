@@ -21,10 +21,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.cleaneditor.app.data.model.FileItem
+import com.cleaneditor.app.data.settings.AppSettingsStore
 import com.cleaneditor.app.navigation.NavigationDestination
 import com.cleaneditor.app.theme.AppThemeSetting
 import com.cleaneditor.app.theme.CleanEditorTheme
@@ -39,8 +41,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            var currentTheme by remember { mutableStateOf(AppThemeSetting.DARK) }
-            CleanEditorTheme(themeSetting = currentTheme) { CleanEditorShell(currentTheme, { currentTheme = it }) }
+            val settingsStore = remember { AppSettingsStore(this@MainActivity) }
+            var currentTheme by remember { mutableStateOf(settingsStore.loadTheme()) }
+            CleanEditorTheme(themeSetting = currentTheme) {
+                CleanEditorShell(currentTheme) { theme ->
+                    currentTheme = theme
+                    settingsStore.saveTheme(theme)
+                }
+            }
         }
     }
 }
