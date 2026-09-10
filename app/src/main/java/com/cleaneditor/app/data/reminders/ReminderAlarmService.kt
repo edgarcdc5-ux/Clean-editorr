@@ -10,6 +10,7 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.RingtoneManager
+import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.cleaneditor.app.R
@@ -64,7 +65,7 @@ class ReminderAlarmService : Service() {
         )
         val fullScreenIntent = PendingIntent.getActivity(
             this,
-            (reminderId.hashCode() xor 0x5A5A5A5A),
+            reminderId.hashCode() xor 0x5A5A5A5A,
             Intent(this, ReminderAlarmActivity::class.java).apply {
                 putExtra(EXTRA_REMINDER_ID, reminderId)
                 putExtra(EXTRA_TITLE, title)
@@ -88,14 +89,20 @@ class ReminderAlarmService : Service() {
     }
 
     private fun createChannel() {
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Alarmes dos lembretes", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "Som contínuo dos lembretes do CleanEditor até serem desativados"
-                setSound(null, null)
-                enableVibration(true)
-            }
-        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    CHANNEL_ID,
+                    "Alarmes dos lembretes",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Som contínuo dos lembretes do CleanEditor até serem desativados"
+                    setSound(null, null)
+                    enableVibration(true)
+                }
+            )
+        }
     }
 
     private fun stopAlarm() {
