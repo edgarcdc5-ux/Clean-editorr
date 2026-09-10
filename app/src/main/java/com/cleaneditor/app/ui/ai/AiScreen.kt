@@ -66,6 +66,15 @@ fun AiScreen(
         if (initialPrompt.isNotBlank()) prompt = initialPrompt.take(GeminiService.MAX_PROMPT_CHARS)
     }
 
+    fun resetConversation() {
+        if (loading) return
+        prompt = ""
+        response = ""
+        error = ""
+        selectedAction = null
+        reminderSaved = false
+    }
+
     fun useClipboardText() {
         if (loading) return
         val text = clipboard.getText()?.text.orEmpty()
@@ -73,6 +82,7 @@ fun AiScreen(
             prompt = text.take(GeminiService.MAX_PROMPT_CHARS)
             response = ""
             error = ""
+            selectedAction = null
             reminderSaved = false
         } else {
             error = "A área de transferência está vazia. Selecione e copie um texto no editor primeiro."
@@ -124,13 +134,22 @@ fun AiScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         CleanEditorHeader(stringResource(R.string.ai_title), stringResource(R.string.ai_subtitle))
-        OutlinedButton(
-            enabled = !loading,
-            onClick = { useClipboardText() },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).testTag("ai_use_clipboard")
-        ) {
-            Icon(Icons.Filled.ContentPaste, null)
-            Text(stringResource(R.string.ai_use_clipboard), Modifier.padding(start = 8.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                enabled = !loading,
+                onClick = { useClipboardText() },
+                modifier = Modifier.weight(1f).testTag("ai_use_clipboard")
+            ) {
+                Icon(Icons.Filled.ContentPaste, null)
+                Text(stringResource(R.string.ai_use_clipboard), Modifier.padding(start = 8.dp))
+            }
+            OutlinedButton(
+                enabled = !loading && (prompt.isNotBlank() || response.isNotBlank() || error.isNotBlank()),
+                onClick = { resetConversation() },
+                modifier = Modifier.weight(1f).testTag("ai_new_conversation")
+            ) {
+                Text("Nova consulta")
+            }
         }
         OutlinedTextField(
             value = prompt,
@@ -160,7 +179,12 @@ fun AiScreen(
             onClick = { request(prompt.trim(), null) },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).testTag("ai_generate_button")
         ) {
-            if (loading) CircularProgressIndicator(strokeWidth = 2.dp) else Text(stringResource(R.string.ai_generate_button))
+            if (loading) {
+                CircularProgressIndicator(strokeWidth = 2.dp)
+                Text("Gerando…", Modifier.padding(start = 8.dp))
+            } else {
+                Text(stringResource(R.string.ai_generate_button))
+            }
         }
         if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp).testTag("ai_error"))
         if (response.isNotBlank()) {
