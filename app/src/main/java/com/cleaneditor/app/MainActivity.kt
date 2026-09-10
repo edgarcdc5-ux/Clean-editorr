@@ -50,10 +50,16 @@ private fun CleanEditorShell(currentTheme: AppThemeSetting, onThemeChange: (AppT
     var activeDestination by remember { mutableStateOf<NavigationDestination>(NavigationDestination.Home) }
     var selectedFile by remember { mutableStateOf<FileItem?>(null) }
     var editorInitialText by remember { mutableStateOf<String?>(null) }
+    var aiInitialPrompt by remember { mutableStateOf("") }
     var reminderDraftContent by remember { mutableStateOf<String?>(null) }
 
     fun openEditor(text: String? = null, file: FileItem? = null) {
         editorInitialText = text; selectedFile = file; activeDestination = NavigationDestination.Editor
+    }
+
+    fun openAi(prompt: String) {
+        aiInitialPrompt = prompt.take(20_000)
+        activeDestination = NavigationDestination.Ai
     }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -81,9 +87,9 @@ private fun CleanEditorShell(currentTheme: AppThemeSetting, onThemeChange: (AppT
                 Box(Modifier.fillMaxSize().padding(innerPadding)) {
                     when (activeDestination) {
                         NavigationDestination.Home -> HomeScreen(onNavigateTo = { destination -> if (destination == NavigationDestination.Editor) openEditor() else activeDestination = destination }, onOpenEditor = { openEditor() })
-                        NavigationDestination.Files -> FilesScreen(onOpenFile = { file -> openEditor(file = file) })
+                        NavigationDestination.Files -> FilesScreen(onOpenFile = { file -> openEditor(file = file) }, onOpenAi = ::openAi)
                         NavigationDestination.Reminders -> RemindersScreen(initialContent = reminderDraftContent, onDraftConsumed = { reminderDraftContent = null }, onOpenEditor = { text -> openEditor(text = text) })
-                        NavigationDestination.Ai -> AiScreen(onOpenEditor = { response -> openEditor(text = response) })
+                        NavigationDestination.Ai -> AiScreen(initialPrompt = aiInitialPrompt, onOpenEditor = { response -> openEditor(text = response) })
                         NavigationDestination.Settings -> SettingsScreen(currentTheme = currentTheme, onThemeChange = onThemeChange)
                         NavigationDestination.Editor -> Unit
                     }
