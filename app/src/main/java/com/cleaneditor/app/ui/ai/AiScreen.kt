@@ -136,6 +136,10 @@ fun AiScreen(
             ActionButton(AiAction.REWRITE, selectedAction, loading, { runAction(AiAction.REWRITE) }, "Reescrever", "ai_action_rewrite")
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ActionButton(AiAction.EXPAND, selectedAction, loading, { runAction(AiAction.EXPAND) }, "Expandir", "ai_action_expand")
+            ActionButton(AiAction.FORMALIZE, selectedAction, loading, { runAction(AiAction.FORMALIZE) }, "Formalizar", "ai_action_formalize")
+        }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ActionButton(AiAction.EXPLAIN, selectedAction, loading, { runAction(AiAction.EXPLAIN) }, "Explicar", "ai_action_explain")
             ActionButton(AiAction.TASK, selectedAction, loading, { runAction(AiAction.TASK) }, "Virar tarefa", "ai_action_task")
         }
