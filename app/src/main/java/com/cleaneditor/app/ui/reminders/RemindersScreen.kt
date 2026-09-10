@@ -20,15 +20,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,6 +42,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerDialog
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,7 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.testTag
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -54,9 +63,14 @@ import com.cleaneditor.app.data.model.Reminder
 import com.cleaneditor.app.data.reminders.ReminderAlarmScheduler
 import com.cleaneditor.app.data.repository.ReminderRepository
 import com.cleaneditor.app.ui.shared.CleanEditorHeader
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 private val priorities = listOf("Baixa", "Média", "Alta")
 private val statusFilters = listOf("Todos", "Pendentes", "Concluídos")
+private val storageDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+private val displayDateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
 @Composable
 fun RemindersScreen(
@@ -195,6 +209,7 @@ private fun ReminderCard(item: Reminder, onToggle: () -> Unit, onEdit: () -> Uni
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ReminderEditorForm(initial: Reminder?, initialContent: String, onCancel: () -> Unit, onSave: (Reminder) -> Unit) {
     var title by remember(initial?.id, initialContent) { mutableStateOf(initial?.title.orEmpty()) }
@@ -205,6 +220,8 @@ private fun ReminderEditorForm(initial: Reminder?, initialContent: String, onCan
     var daily by remember(initial?.id) { mutableStateOf(initial?.daily ?: false) }
     var alarmTime by remember(initial?.id) { mutableStateOf(initial?.alarmTime ?: "08:00") }
     var alarmEnabled by remember(initial?.id) { mutableStateOf(initial?.alarmEnabled ?: true) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
     val valid = title.isNotBlank()
     val validTime = alarmTime.matches(Regex("^([01]\\d|2[0-3]):[0-5]\\d$"))
     val scrollState = rememberScrollState()
@@ -222,7 +239,17 @@ private fun ReminderEditorForm(initial: Reminder?, initialContent: String, onCan
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(content, { content = it }, Modifier.fillMaxWidth().height(150.dp).testTag("reminder_content"), label = { Text("Conteúdo") })
             Spacer(Modifier.height(8.dp))
-            OutlinedTextField(date, { date = it }, Modifier.fillMaxWidth().testTag("reminder_date"), label = { Text("Data (AAAA-MM-DD)") }, singleLine = true)
+
+            OutlinedTextField(
+                value = date.toDisplayDate(),
+                onValueChange = {},
+                modifier = Modifier.fillMaxWidth().testTag("reminder_date"),
+                label = { Text("Data") },
+                readOnly = true,
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Filled.CalendarMonth, contentDescription = "Selecionar data") },
+                trailingIcon = { TextButton(onClick = { showDatePicker = true }) { Text("Calendário") } }
+            )
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(category, { category = it }, Modifier.fillMaxWidth().testTag("reminder_category"), label = { Text("Categoria") }, singleLine = true)
             Spacer(Modifier.height(8.dp))
@@ -231,12 +258,21 @@ private fun ReminderEditorForm(initial: Reminder?, initialContent: String, onCan
                 Text("Repetir todos os dias")
             }
             if (daily) {
-                OutlinedTextField(alarmTime, { alarmTime = it }, Modifier.fillMaxWidth().testTag("reminder_alarm_time"), label = { Text("Horário do alarme (HH:MM)") }, singleLine = true, isError = !validTime)
+                OutlinedTextField(
+                    value = alarmTime,
+                    onValueChange = {},
+                    modifier = Modifier.fillMaxWidth().testTag("reminder_alarm_time"),
+                    label = { Text("Horário do alarme") },
+                    readOnly = true,
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Filled.Schedule, contentDescription = "Selecionar horário") },
+                    trailingIcon = { TextButton(onClick = { showTimePicker = true }) { Text("Escolher") } }
+                )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = alarmEnabled, onCheckedChange = { alarmEnabled = it }, modifier = Modifier.testTag("reminder_alarm_enabled"))
                     Text("Ativar alarme diário")
                 }
-                if (!validTime) Text("Use um horário entre 00:00 e 23:59.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                if (!validTime) Text("Horário inválido.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
             Spacer(Modifier.height(8.dp))
             Text("Prioridade", style = MaterialTheme.typography.labelLarge)
@@ -255,9 +291,52 @@ private fun ReminderEditorForm(initial: Reminder?, initialContent: String, onCan
             TextButton(onClick = onCancel) { Text("Cancelar") }
             Button(enabled = valid && (!daily || validTime), onClick = {
                 val now = System.currentTimeMillis()
-                onSave(initial?.copy(title = title.trim(), content = content, date = date.trim(), priority = priority, category = category.trim(), updatedAt = now, daily = daily, alarmTime = if (daily) alarmTime else "", alarmEnabled = daily && alarmEnabled)
-                    ?: Reminder(now, title.trim(), content, date.trim(), priority, category.trim(), false, now, now, daily, if (daily) alarmTime else "", daily && alarmEnabled))
+                onSave(initial?.copy(title = title.trim(), content = content, date = date, priority = priority, category = category.trim(), updatedAt = now, daily = daily, alarmTime = if (daily) alarmTime else "", alarmEnabled = daily && alarmEnabled)
+                    ?: Reminder(now, title.trim(), content, date, priority, category.trim(), false, now, now, daily, if (daily) alarmTime else "", daily && alarmEnabled))
             }, modifier = Modifier.testTag("btn_reminder_save")) { Icon(Icons.Filled.Check, null); Text("Salvar") }
         }
     }
+
+    if (showDatePicker) {
+        val initialMillis = date.toPickerMillis()
+        val dateState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    dateState.selectedDateMillis?.let { date = it.toStorageDate() }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancelar") } }
+        ) { DatePicker(state = dateState) }
+    }
+
+    if (showTimePicker) {
+        val parsed = alarmTime.split(":").mapNotNull { it.toIntOrNull() }
+        val timeState = rememberTimePickerState(initialHour = parsed.getOrNull(0) ?: 8, initialMinute = parsed.getOrNull(1) ?: 0, is24Hour = true)
+        TimePickerDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    alarmTime = "%02d:%02d".format(Locale.US, timeState.hour, timeState.minute)
+                    showTimePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("Cancelar") } }
+        ) { TimePicker(state = timeState) }
+    }
+}
+
+private fun String.toDisplayDate(): String = runCatching {
+    storageDateFormat.parse(this)?.let(displayDateFormat::format)
+}.getOrNull() ?: this
+
+private fun String.toPickerMillis(): Long? = runCatching { storageDateFormat.parse(this)?.time }.getOrNull()
+
+private fun Long.toStorageDate(): String = runCatching { storageDateFormat.format(Date(this)) }.getOrDefault("")
+
+private fun Long.toStorageDate(): String {
+    val calendar = Calendar.getInstance().apply { timeInMillis = this@toStorageDate }
+    return storageDateFormat.format(calendar.time)
 }
