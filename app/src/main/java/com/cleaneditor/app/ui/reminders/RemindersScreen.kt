@@ -1,5 +1,10 @@
 package com.cleaneditor.app.ui.reminders
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -41,7 +46,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.cleaneditor.app.data.model.Reminder
+import com.cleaneditor.app.data.reminders.ReminderAlarmScheduler
 import com.cleaneditor.app.data.repository.ReminderRepository
 import com.cleaneditor.app.ui.shared.CleanEditorHeader
 
@@ -57,6 +64,7 @@ fun RemindersScreen(
 ) {
     val context = LocalContext.current
     val repository = remember(context) { ReminderRepository(context) }
+    val scheduler = remember(context) { ReminderAlarmScheduler(context) }
     var reminders by remember { mutableStateOf(repository.getAll()) }
     var editing by remember { mutableStateOf<Reminder?>(null) }
     var creating by remember { mutableStateOf(false) }
@@ -64,6 +72,11 @@ fun RemindersScreen(
     var formInitialContent by remember { mutableStateOf("") }
     var searchQuery by remember { mutableStateOf("") }
     var statusFilter by remember { mutableStateOf("Todos") }
+    var pendingAlarmReminder by remember { mutableStateOf<Reminder?>(null) }
+    val requestNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        pendingAlarmReminder?.let { if (granted) scheduler.schedule(it) }
+        pendingAlarmReminder = null
+    }
 
     LaunchedEffect(initialContent) {
         if (initialContent != null) {
@@ -75,18 +88,26 @@ fun RemindersScreen(
 
     fun refresh() { reminders = repository.getAll() }
 
+    fun saveReminder(item: Reminder) {
+        repository.save(item)
+        if (item.daily && item.alarmEnabled && !item.completed) {
+            if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                pendingAlarmReminder = item
+                requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else scheduler.schedule(item)
+        } else scheduler.cancel(item.id)
+        refresh()
+        creating = false
+        editing = null
+        formInitialContent = ""
+    }
+
     if (creating || editing != null) {
         ReminderEditorForm(
             editing,
             formInitialContent,
             { creating = false; editing = null; formInitialContent = "" },
-            { item ->
-                repository.save(item)
-                refresh()
-                creating = false
-                editing = null
-                formInitialContent = ""
-            }
+            ::saveReminder
         )
         return
     }
@@ -94,7 +115,7 @@ fun RemindersScreen(
     val filtered = reminders
         .filter { item ->
             val query = searchQuery.trim()
-            query.isBlank() || listOf(item.title, item.content, item.category, item.priority, item.date)
+            query.isBlank() || listOf(item.title, item.content, item.category, item.priority, item.date, item.alarmTime)
                 .any { it.contains(query, ignoreCase = true) }
         }
         .filter { item ->
@@ -104,79 +125,37 @@ fun RemindersScreen(
                 else -> true
             }
         }
-        .sortedWith(
-            compareBy<Reminder> { it.completed }
-                .thenBy { it.date.ifBlank { "9999-99-99" } }
-                .thenByDescending { priorities.indexOf(it.priority) }
-        )
+        .sortedWith(compareBy<Reminder> { it.completed }.thenBy { it.date.ifBlank { "9999-99-99" } }.thenByDescending { priorities.indexOf(it.priority) })
 
     Scaffold(
         modifier = modifier.fillMaxSize().testTag("screen_reminders"),
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { formInitialContent = ""; creating = true },
-                modifier = Modifier.testTag("btn_reminder_add")
-            ) { Icon(Icons.Filled.Add, "Novo lembrete") }
+            FloatingActionButton(onClick = { formInitialContent = ""; creating = true }, modifier = Modifier.testTag("btn_reminder_add")) {
+                Icon(Icons.Filled.Add, "Novo lembrete")
+            }
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            CleanEditorHeader(
-                title = "Lembretes & Tarefas",
-                subtitle = "Persistentes, organizados por data, prioridade e categoria"
-            )
-
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).testTag("reminder_search"),
-                label = { Text("Pesquisar lembretes") },
-                singleLine = true
-            )
-
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                statusFilters.forEach { filter ->
-                    TextButton(
-                        onClick = { statusFilter = filter },
-                        modifier = Modifier.testTag("reminder_filter_${filter.lowercase()}")
-                    ) {
-                        Text(if (statusFilter == filter) "✓ $filter" else filter)
-                    }
-                }
+            CleanEditorHeader(title = "Lembretes & Tarefas", subtitle = "Persistentes, organizados por data, prioridade e categoria")
+            OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).testTag("reminder_search"), label = { Text("Pesquisar lembretes") }, singleLine = true)
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                statusFilters.forEach { filter -> TextButton(onClick = { statusFilter = filter }, modifier = Modifier.testTag("reminder_filter_${filter.lowercase()}")) { Text(if (statusFilter == filter) "✓ $filter" else filter) } }
             }
-
             if (reminders.isEmpty()) {
-                Column(
-                    Modifier.fillMaxWidth().padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Filled.NotificationsActive, null, modifier = Modifier.padding(8.dp))
                     Text("Nenhum lembrete criado", style = MaterialTheme.typography.titleMedium)
                     Text("Crie um lembrete para começar.", modifier = Modifier.padding(top = 6.dp))
                 }
             } else if (filtered.isEmpty()) {
-                Column(
-                    Modifier.fillMaxWidth().padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Nenhum resultado", style = MaterialTheme.typography.titleMedium)
                     Text("Tente outra pesquisa ou filtro.", modifier = Modifier.padding(top = 6.dp))
                 }
             } else {
-                LazyColumn(
-                    Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(filtered, key = { it.id }) { item ->
-                        ReminderCard(
-                            item,
-                            { repository.setCompleted(item.id, !item.completed); refresh() },
-                            { editing = item },
-                            { deleteTarget = item },
-                            { onOpenEditor(item.content) }
-                        )
+                        ReminderCard(item, { val next = !item.completed; repository.setCompleted(item.id, next); if (next) scheduler.cancel(item.id) else if (item.daily && item.alarmEnabled) scheduler.schedule(item); refresh() }, { editing = item }, { deleteTarget = item }, { onOpenEditor(item.content) })
                     }
                     item { Spacer(Modifier.height(72.dp)) }
                 }
@@ -185,157 +164,80 @@ fun RemindersScreen(
     }
 
     deleteTarget?.let { item ->
-        AlertDialog(
-            onDismissRequest = { deleteTarget = null },
-            title = { Text("Excluir lembrete?") },
-            text = { Text("\"${item.title}\" será removido permanentemente deste dispositivo.") },
-            confirmButton = {
-                TextButton(onClick = { repository.delete(item.id); deleteTarget = null; refresh() }) {
-                    Text("Excluir")
-                }
-            },
-            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Cancelar") } }
-        )
+        AlertDialog(onDismissRequest = { deleteTarget = null }, title = { Text("Excluir lembrete?") }, text = { Text("\"${item.title}\" será removido permanentemente deste dispositivo.") },
+            confirmButton = { TextButton(onClick = { scheduler.cancel(item.id); repository.delete(item.id); deleteTarget = null; refresh() }) { Text("Excluir") } },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Cancelar") } })
     }
 }
 
 @Composable
-private fun ReminderCard(
-    item: Reminder,
-    onToggle: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onOpenEditor: () -> Unit
-) {
+private fun ReminderCard(item: Reminder, onToggle: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, onOpenEditor: () -> Unit) {
     Card(Modifier.fillMaxWidth().testTag("reminder_${item.id}")) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(
-                    checked = item.completed,
-                    onCheckedChange = { onToggle() },
-                    modifier = Modifier.testTag("reminder_check_${item.id}")
-                )
+                Checkbox(checked = item.completed, onCheckedChange = { onToggle() }, modifier = Modifier.testTag("reminder_check_${item.id}"))
                 Column(Modifier.weight(1f)) {
-                    Text(
-                        item.title.ifBlank { "Sem título" },
-                        style = MaterialTheme.typography.titleMedium,
-                        textDecoration = if (item.completed) TextDecoration.LineThrough else null
-                    )
-                    Text(
-                        "${item.date.ifBlank { "Sem data" }} • ${item.priority} • ${item.category.ifBlank { "Geral" }}",
-                        style = MaterialTheme.typography.labelMedium
-                    )
+                    Text(item.title.ifBlank { "Sem título" }, style = MaterialTheme.typography.titleMedium, textDecoration = if (item.completed) TextDecoration.LineThrough else null)
+                    Text("${item.date.ifBlank { "Sem data" }} • ${item.priority} • ${item.category.ifBlank { "Geral" }}", style = MaterialTheme.typography.labelMedium)
+                    if (item.daily && item.alarmEnabled && item.alarmTime.isNotBlank()) Text("🔔 Diário às ${item.alarmTime}", style = MaterialTheme.typography.labelMedium)
                 }
-                IconButton(onClick = onEdit, modifier = Modifier.testTag("reminder_edit_${item.id}")) {
-                    Icon(Icons.Filled.Edit, "Editar")
-                }
-                IconButton(onClick = onDelete, modifier = Modifier.testTag("reminder_delete_${item.id}")) {
-                    Icon(Icons.Filled.Delete, "Excluir")
-                }
+                IconButton(onClick = onEdit, modifier = Modifier.testTag("reminder_edit_${item.id}")) { Icon(Icons.Filled.Edit, "Editar") }
+                IconButton(onClick = onDelete, modifier = Modifier.testTag("reminder_delete_${item.id}")) { Icon(Icons.Filled.Delete, "Excluir") }
             }
             if (item.content.isNotBlank()) {
                 Text(item.content, Modifier.padding(start = 12.dp, top = 4.dp, end = 12.dp), maxLines = 4)
-                TextButton(onClick = onOpenEditor, modifier = Modifier.testTag("reminder_open_editor_${item.id}")) {
-                    Icon(Icons.Filled.OpenInNew, null)
-                    Text("Abrir conteúdo no editor")
-                }
+                TextButton(onClick = onOpenEditor, modifier = Modifier.testTag("reminder_open_editor_${item.id}")) { Icon(Icons.Filled.OpenInNew, null); Text("Abrir conteúdo no editor") }
             }
         }
     }
 }
 
 @Composable
-private fun ReminderEditorForm(
-    initial: Reminder?,
-    initialContent: String,
-    onCancel: () -> Unit,
-    onSave: (Reminder) -> Unit
-) {
+private fun ReminderEditorForm(initial: Reminder?, initialContent: String, onCancel: () -> Unit, onSave: (Reminder) -> Unit) {
     var title by remember(initial?.id, initialContent) { mutableStateOf(initial?.title.orEmpty()) }
     var content by remember(initial?.id, initialContent) { mutableStateOf(initial?.content ?: initialContent) }
     var date by remember(initial?.id) { mutableStateOf(initial?.date.orEmpty()) }
     var priority by remember(initial?.id) { mutableStateOf(initial?.priority ?: "Média") }
     var category by remember(initial?.id) { mutableStateOf(initial?.category ?: "Geral") }
+    var daily by remember(initial?.id) { mutableStateOf(initial?.daily ?: false) }
+    var alarmTime by remember(initial?.id) { mutableStateOf(initial?.alarmTime ?: "08:00") }
+    var alarmEnabled by remember(initial?.id) { mutableStateOf(initial?.alarmEnabled ?: true) }
     val valid = title.isNotBlank()
+    val validTime = alarmTime.matches(Regex("^([01]\\d|2[0-3]):[0-5]\\d$"))
 
     Column(Modifier.fillMaxSize().padding(16.dp).testTag("screen_reminder_form")) {
-        CleanEditorHeader(
-            title = if (initial == null) "Novo lembrete" else "Editar lembrete",
-            subtitle = "Todos os campos ficam salvos localmente"
-        )
-        OutlinedTextField(
-            title,
-            { title = it },
-            Modifier.fillMaxWidth().testTag("reminder_title"),
-            label = { Text("Título") },
-            singleLine = true
-        )
+        CleanEditorHeader(title = if (initial == null) "Novo lembrete" else "Editar lembrete", subtitle = "Todos os campos ficam salvos localmente")
+        OutlinedTextField(title, { title = it }, Modifier.fillMaxWidth().testTag("reminder_title"), label = { Text("Título") }, singleLine = true)
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(
-            content,
-            { content = it },
-            Modifier.fillMaxWidth().height(150.dp).testTag("reminder_content"),
-            label = { Text("Conteúdo") }
-        )
+        OutlinedTextField(content, { content = it }, Modifier.fillMaxWidth().height(150.dp).testTag("reminder_content"), label = { Text("Conteúdo") })
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(
-            date,
-            { date = it },
-            Modifier.fillMaxWidth().testTag("reminder_date"),
-            label = { Text("Data (AAAA-MM-DD)") },
-            singleLine = true
-        )
+        OutlinedTextField(date, { date = it }, Modifier.fillMaxWidth().testTag("reminder_date"), label = { Text("Data (AAAA-MM-DD)") }, singleLine = true)
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(
-            category,
-            { category = it },
-            Modifier.fillMaxWidth().testTag("reminder_category"),
-            label = { Text("Categoria") },
-            singleLine = true
-        )
+        OutlinedTextField(category, { category = it }, Modifier.fillMaxWidth().testTag("reminder_category"), label = { Text("Categoria") }, singleLine = true)
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = daily, onCheckedChange = { daily = it }, modifier = Modifier.testTag("reminder_daily"))
+            Text("Repetir todos os dias")
+        }
+        if (daily) {
+            OutlinedTextField(alarmTime, { alarmTime = it }, Modifier.fillMaxWidth().testTag("reminder_alarm_time"), label = { Text("Horário do alarme (HH:MM)") }, singleLine = true, isError = !validTime)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = alarmEnabled, onCheckedChange = { alarmEnabled = it }, modifier = Modifier.testTag("reminder_alarm_enabled"))
+                Text("Ativar alarme diário")
+            }
+            if (!validTime) Text("Use um horário entre 00:00 e 23:59.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
         Spacer(Modifier.height(8.dp))
         Text("Prioridade", style = MaterialTheme.typography.labelLarge)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            priorities.forEach { value ->
-                TextButton(
-                    onClick = { priority = value },
-                    modifier = Modifier.testTag("priority_$value")
-                ) { Text(if (priority == value) "✓ $value" else value) }
-            }
-        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { priorities.forEach { value -> TextButton(onClick = { priority = value }, modifier = Modifier.testTag("priority_$value")) { Text(if (priority == value) "✓ $value" else value) } } }
         Spacer(Modifier.weight(1f))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             TextButton(onClick = onCancel) { Text("Cancelar") }
-            Button(
-                enabled = valid,
-                onClick = {
-                    val now = System.currentTimeMillis()
-                    onSave(
-                        initial?.copy(
-                            title = title.trim(),
-                            content = content,
-                            date = date.trim(),
-                            priority = priority,
-                            category = category.trim(),
-                            updatedAt = now
-                        ) ?: Reminder(
-                            now,
-                            title.trim(),
-                            content,
-                            date.trim(),
-                            priority,
-                            category.trim(),
-                            false,
-                            now,
-                            now
-                        )
-                    )
-                },
-                modifier = Modifier.testTag("btn_reminder_save")
-            ) {
-                Icon(Icons.Filled.Check, null)
-                Text("Salvar")
-            }
+            Button(enabled = valid && (!daily || validTime), onClick = {
+                val now = System.currentTimeMillis()
+                onSave(initial?.copy(title = title.trim(), content = content, date = date.trim(), priority = priority, category = category.trim(), updatedAt = now, daily = daily, alarmTime = if (daily) alarmTime else "", alarmEnabled = daily && alarmEnabled)
+                    ?: Reminder(now, title.trim(), content, date.trim(), priority, category.trim(), false, now, now, daily, if (daily) alarmTime else "", daily && alarmEnabled))
+            }, modifier = Modifier.testTag("btn_reminder_save")) { Icon(Icons.Filled.Check, null); Text("Salvar") }
         }
     }
 }
