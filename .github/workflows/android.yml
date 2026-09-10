@@ -27,10 +27,14 @@ jobs:
           gradle-version: '9.3.1'
 
       - name: Configure Gemini API key
-        if: ${{ github.event_name == 'push' && secrets.GEMINI_API_KEY != '' }}
+        if: github.event_name == 'push'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "GEMINI_API_KEY secret is not configured for this repository."
+            exit 1
+          fi
           printf 'GEMINI_API_KEY=%s\n' "$GEMINI_API_KEY" > .env
 
       - name: Run unit tests
@@ -50,5 +54,5 @@ jobs:
           if-no-files-found: error
 
       - name: Remove Gemini API key file
-        if: ${{ always() }}
+        if: always()
         run: rm -f .env
