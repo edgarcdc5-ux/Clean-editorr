@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
@@ -96,23 +95,14 @@ private fun CleanEditorShell(currentTheme: AppThemeSetting, onThemeChange: (AppT
             Scaffold(Modifier.fillMaxSize().statusBarsPadding()) { innerPadding ->
                 Row(Modifier.fillMaxSize().padding(innerPadding)) {
                     NavigationRail(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .testTag("clean_editor_vertical_menu"),
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        tonalElevation = 6.dp
+                        modifier = Modifier.fillMaxHeight().testTag("clean_editor_vertical_menu"),
+                        containerColor = MaterialTheme.colorScheme.surface
                     ) {
                         Column(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .padding(vertical = 8.dp),
+                            modifier = Modifier.fillMaxHeight().padding(vertical = 8.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(
-                                text = "CleanEditor",
-                                style = MaterialTheme.typography.labelMedium,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
+                            Text("CleanEditor", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(bottom = 8.dp))
                             NavigationDestination.items.forEach { destination ->
                                 val isSelected = activeDestination == destination
                                 NavigationRailItem(
@@ -125,12 +115,7 @@ private fun CleanEditorShell(currentTheme: AppThemeSetting, onThemeChange: (AppT
                                             stringResource(destination.labelRes)
                                         )
                                     },
-                                    label = {
-                                        Text(
-                                            stringResource(destination.labelRes),
-                                            style = MaterialTheme.typography.labelSmall
-                                        )
-                                    }
+                                    label = { Text(stringResource(destination.labelRes), style = MaterialTheme.typography.labelSmall) }
                                 )
                                 Spacer(Modifier.height(2.dp))
                             }
@@ -139,10 +124,7 @@ private fun CleanEditorShell(currentTheme: AppThemeSetting, onThemeChange: (AppT
                     Box(Modifier.fillMaxSize()) {
                         when (activeDestination) {
                             NavigationDestination.Home -> HomeScreen(
-                                onNavigateTo = { destination ->
-                                    if (destination == NavigationDestination.Editor) openEditor()
-                                    else activeDestination = destination
-                                },
+                                onNavigateTo = { destination -> if (destination == NavigationDestination.Editor) openEditor() else activeDestination = destination },
                                 onOpenEditor = { openEditor() }
                             )
                             NavigationDestination.Files -> FilesScreen(
@@ -154,14 +136,8 @@ private fun CleanEditorShell(currentTheme: AppThemeSetting, onThemeChange: (AppT
                                 onDraftConsumed = { reminderDraftContent = null },
                                 onOpenEditor = { text -> openEditor(text = text) }
                             )
-                            NavigationDestination.Ai -> AiScreen(
-                                initialPrompt = aiInitialPrompt,
-                                onOpenEditor = { response -> openEditor(text = response) }
-                            )
-                            NavigationDestination.Settings -> SettingsScreen(
-                                currentTheme = currentTheme,
-                                onThemeChange = onThemeChange
-                            )
+                            NavigationDestination.Ai -> AiScreen(initialPrompt = aiInitialPrompt, onOpenEditor = { response -> openEditor(text = response) })
+                            NavigationDestination.Settings -> SettingsScreen(currentTheme = currentTheme, onThemeChange = onThemeChange)
                             NavigationDestination.Editor -> Unit
                         }
                     }
