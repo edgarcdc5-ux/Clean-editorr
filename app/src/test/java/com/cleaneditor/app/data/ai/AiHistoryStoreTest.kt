@@ -34,7 +34,6 @@ class AiHistoryStoreTest {
         assertEquals(30, trimmed.size)
         assertEquals(newEntry, trimmed.first())
         assertEquals("Prompt 1", trimmed[1].prompt)
-        // The 30th original item (Prompt 30) was dropped
         assertTrue(trimmed.none { it.prompt == "Prompt 30" })
     }
 
@@ -50,5 +49,23 @@ class AiHistoryStoreTest {
         assertEquals(2, result.size)
         assertEquals(newEntry, result[0])
         assertEquals(existing[0], result[1])
+    }
+
+    @Test
+    fun historyEntryPromptAndResponseAreBoundedBeforePersistence() {
+        val entry = AiHistoryEntry(
+            timestamp = 1L,
+            action = "GERAR",
+            prompt = "p".repeat(5_000),
+            response = "r".repeat(12_000)
+        )
+
+        val bounded = entry.copy(
+            prompt = entry.prompt.take(4_000),
+            response = entry.response.take(10_000)
+        )
+
+        assertEquals(4_000, bounded.prompt.length)
+        assertEquals(10_000, bounded.response.length)
     }
 }
