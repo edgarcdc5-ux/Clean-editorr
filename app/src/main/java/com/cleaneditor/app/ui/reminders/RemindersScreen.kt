@@ -13,8 +13,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
@@ -204,34 +207,51 @@ private fun ReminderEditorForm(initial: Reminder?, initialContent: String, onCan
     var alarmEnabled by remember(initial?.id) { mutableStateOf(initial?.alarmEnabled ?: true) }
     val valid = title.isNotBlank()
     val validTime = alarmTime.matches(Regex("^([01]\\d|2[0-3]):[0-5]\\d$"))
+    val scrollState = rememberScrollState()
 
-    Column(Modifier.fillMaxSize().padding(16.dp).testTag("screen_reminder_form")) {
-        CleanEditorHeader(title = if (initial == null) "Novo lembrete" else "Editar lembrete", subtitle = "Todos os campos ficam salvos localmente")
-        OutlinedTextField(title, { title = it }, Modifier.fillMaxWidth().testTag("reminder_title"), label = { Text("Título") }, singleLine = true)
-        Spacer(Modifier.height(8.dp))
-        OutlinedTextField(content, { content = it }, Modifier.fillMaxWidth().height(150.dp).testTag("reminder_content"), label = { Text("Conteúdo") })
-        Spacer(Modifier.height(8.dp))
-        OutlinedTextField(date, { date = it }, Modifier.fillMaxWidth().testTag("reminder_date"), label = { Text("Data (AAAA-MM-DD)") }, singleLine = true)
-        Spacer(Modifier.height(8.dp))
-        OutlinedTextField(category, { category = it }, Modifier.fillMaxWidth().testTag("reminder_category"), label = { Text("Categoria") }, singleLine = true)
-        Spacer(Modifier.height(8.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(checked = daily, onCheckedChange = { daily = it }, modifier = Modifier.testTag("reminder_daily"))
-            Text("Repetir todos os dias")
-        }
-        if (daily) {
-            OutlinedTextField(alarmTime, { alarmTime = it }, Modifier.fillMaxWidth().testTag("reminder_alarm_time"), label = { Text("Horário do alarme (HH:MM)") }, singleLine = true, isError = !validTime)
+    Column(Modifier.fillMaxSize().testTag("screen_reminder_form")) {
+        Column(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 16.dp)
+        ) {
+            CleanEditorHeader(title = if (initial == null) "Novo lembrete" else "Editar lembrete", subtitle = "Todos os campos ficam salvos localmente")
+            OutlinedTextField(title, { title = it }, Modifier.fillMaxWidth().testTag("reminder_title"), label = { Text("Título") }, singleLine = true)
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(content, { content = it }, Modifier.fillMaxWidth().height(150.dp).testTag("reminder_content"), label = { Text("Conteúdo") })
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(date, { date = it }, Modifier.fillMaxWidth().testTag("reminder_date"), label = { Text("Data (AAAA-MM-DD)") }, singleLine = true)
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(category, { category = it }, Modifier.fillMaxWidth().testTag("reminder_category"), label = { Text("Categoria") }, singleLine = true)
+            Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = alarmEnabled, onCheckedChange = { alarmEnabled = it }, modifier = Modifier.testTag("reminder_alarm_enabled"))
-                Text("Ativar alarme diário")
+                Checkbox(checked = daily, onCheckedChange = { daily = it }, modifier = Modifier.testTag("reminder_daily"))
+                Text("Repetir todos os dias")
             }
-            if (!validTime) Text("Use um horário entre 00:00 e 23:59.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            if (daily) {
+                OutlinedTextField(alarmTime, { alarmTime = it }, Modifier.fillMaxWidth().testTag("reminder_alarm_time"), label = { Text("Horário do alarme (HH:MM)") }, singleLine = true, isError = !validTime)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = alarmEnabled, onCheckedChange = { alarmEnabled = it }, modifier = Modifier.testTag("reminder_alarm_enabled"))
+                    Text("Ativar alarme diário")
+                }
+                if (!validTime) Text("Use um horário entre 00:00 e 23:59.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text("Prioridade", style = MaterialTheme.typography.labelLarge)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { priorities.forEach { value -> TextButton(onClick = { priority = value }, modifier = Modifier.testTag("priority_$value")) { Text(if (priority == value) "✓ $value" else value) } } }
+            Spacer(Modifier.height(16.dp))
         }
-        Spacer(Modifier.height(8.dp))
-        Text("Prioridade", style = MaterialTheme.typography.labelLarge)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { priorities.forEach { value -> TextButton(onClick = { priority = value }, modifier = Modifier.testTag("priority_$value")) { Text(if (priority == value) "✓ $value" else value) } } }
-        Spacer(Modifier.weight(1f))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             TextButton(onClick = onCancel) { Text("Cancelar") }
             Button(enabled = valid && (!daily || validTime), onClick = {
                 val now = System.currentTimeMillis()
