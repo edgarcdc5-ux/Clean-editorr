@@ -17,12 +17,14 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DriveFileMove
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -53,14 +55,34 @@ private enum class FileFilter { ALL, DOCUMENTS, FOLDERS, FAVORITES }
 private enum class SortMode { NAME, DATE, SIZE }
 
 @Composable
-fun FilesScreen(onOpenFile: (FileItem) -> Unit = {}, modifier: Modifier = Modifier) {
+fun FilesScreen(
+    onOpenFile: (FileItem) -> Unit = {},
+    onOpenAi: (String) -> Unit = {},
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current; val repository = remember { FileManagerRepository(context) }; val scope = rememberCoroutineScope()
     var currentDir by remember { mutableStateOf(repository.root()) }; var items by remember { mutableStateOf<List<FileItem>>(emptyList()) }; var query by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf(FileFilter.ALL) }; var sortMode by remember { mutableStateOf(SortMode.NAME) }; var ascending by remember { mutableStateOf(true) }
     var dialog by remember { mutableStateOf<String?>(null) }; var selectedItem by remember { mutableStateOf<FileItem?>(null) }; var newName by remember { mutableStateOf("") }; var menuItem by remember { mutableStateOf<FileItem?>(null) }; var error by remember { mutableStateOf<String?>(null) }
     var clipboardItem by remember { mutableStateOf<FileItem?>(null) }; var clipboardMode by remember { mutableStateOf<String?>(null) }
+    var aiLoadingPath by remember { mutableStateOf<String?>(null) }
     fun refresh() = scope.launch { items = repository.listItems(currentDir) }
     fun showError(result: Result<*>) { error = result.exceptionOrNull()?.message ?: "Operação não concluída." }
+    fun analyzeWithAi(item: FileItem) {
+        if (aiLoadingPath != null) return
+        aiLoadingPath = item.path
+        scope.launch {
+            repository.readFile(item.file)
+                .onSuccess { content ->
+                    val maxChars = 18_000
+                    val clipped = content.take(maxChars)
+                    val suffix = if (content.length > maxChars) "\n\n[Arquivo truncado para respeitar o limite de contexto da IA.]" else ""
+                    onOpenAi("Arquivo: ${item.name}\nExtensão: ${item.extension.ifBlank { "sem extensão" }}\n\n$clipped$suffix")
+                }
+                .onFailure { error = it.message ?: "Não foi possível ler o arquivo." }
+            aiLoadingPath = null
+        }
+    }
     LaunchedEffect(currentDir.absolutePath) { refresh() }
     val visibleItems = remember(items, query, filter, sortMode, ascending) {
         var result = repository.search(items, query); result = when (filter) { FileFilter.ALL -> result; FileFilter.DOCUMENTS -> result.filter { !it.isDirectory }; FileFilter.FOLDERS -> result.filter { it.isDirectory }; FileFilter.FAVORITES -> result.filter { it.isFavorite } }
@@ -79,6 +101,13 @@ fun FilesScreen(onOpenFile: (FileItem) -> Unit = {}, modifier: Modifier = Modifi
     }
     menuItem?.let { item -> AlertDialog(onDismissRequest={menuItem=null},title={Text(item.name)},text={Column{
         TextButton(onClick={menuItem=null;if(item.isDirectory)currentDir=item.file else onOpenFile(item)}){Text("Abrir")}
+        if (!item.isDirectory) OutlinedButton(
+            enabled = aiLoadingPath == null,
+            onClick = { menuItem = null; analyzeWithAi(item) },
+            modifier = Modifier.fillMaxWidth().testTag("file_ai_${item.name}")
+        ) {
+            if (aiLoadingPath == item.path) Text("Lendo arquivo…") else { Icon(Icons.Filled.Psychology,"",Modifier.padding(end=6.dp)); Text("Analisar com IA") }
+        }
         TextButton(onClick={newName=item.name;selectedItem=item;menuItem=null;dialog="rename"}){Text("Renomear")}
         TextButton(onClick={repository.toggleFavorite(item.path);menuItem=null;refresh()}){Text(if(item.isFavorite)"Desfavoritar" else "Favoritar")}
         TextButton(onClick={clipboardItem=item;clipboardMode="copy";menuItem=null}){Icon(Icons.Filled.ContentCopy,"",Modifier.padding(end=6.dp));Text("Copiar")}
