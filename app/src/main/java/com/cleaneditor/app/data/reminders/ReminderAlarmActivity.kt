@@ -3,6 +3,7 @@ package com.cleaneditor.app.data.reminders
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.OnBackPressedCallback
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +23,16 @@ import com.cleaneditor.app.theme.CleanEditorTheme
 class ReminderAlarmActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    // Back must not dismiss the alarm. The user must explicitly disable it.
+                }
+            }
+        )
+
         val title = intent.getStringExtra(ReminderAlarmService.EXTRA_TITLE).orEmpty().ifBlank { "Lembrete" }
         val content = intent.getStringExtra(ReminderAlarmService.EXTRA_CONTENT).orEmpty()
 
@@ -33,11 +44,6 @@ class ReminderAlarmActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-    @Suppress("MissingSuperCall")
-    override fun onBackPressed() {
-        // Back must not dismiss the alarm. The user must explicitly disable it.
     }
 }
 
