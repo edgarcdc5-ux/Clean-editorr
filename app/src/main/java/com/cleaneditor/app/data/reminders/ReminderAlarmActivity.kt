@@ -35,6 +35,7 @@ class ReminderAlarmActivity : ComponentActivity() {
         }
     }
 
+    @Suppress("MissingSuperCall")
     override fun onBackPressed() {
         // Back must not dismiss the alarm. The user must explicitly disable it.
     }
