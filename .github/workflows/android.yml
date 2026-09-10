@@ -90,9 +90,10 @@ jobs:
           apk_path="app/build/outputs/apk/debug/app-debug.apk"
           keystore_path="$RUNNER_TEMP/cleaneditor-debug.keystore"
           "$APKSIGNER" verify --verbose --print-certs "$apk_path"
-          keystore_sha256="$(keytool -list -v -keystore "$keystore_path" -storepass:env CLEANEDITOR_KEYSTORE_PASSWORD -alias "$CLEANEDITOR_KEY_ALIAS" | awk -F': ' '/SHA256:/{ print $2; exit }')"
+          keystore_sha256="$(keytool -list -v -keystore "$keystore_path" -storepass:env CLEANEDITOR_KEYSTORE_PASSWORD -alias "$CLEANEDITOR_KEY_ALIAS" | awk -F': ' '/Owner:/{found=1} found && /SHA256:/{ print $2; exit }')"
           apk_sha256="$("$APKSIGNER" verify --print-certs "$apk_path" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/{ print $2; exit }')"
           test -n "$keystore_sha256"
+          test -n "$apk_sha256"
           test "$apk_sha256" = "$keystore_sha256"
 
       - name: Upload debug APK
