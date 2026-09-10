@@ -17,7 +17,34 @@ class ReminderRepository(context: Context) {
     }
 
     fun save(reminder: Reminder) = synchronized(this) { persist(getAll().filterNot { it.id == reminder.id } + reminder) }
+
+    fun createFromAi(text: String): Reminder = synchronized(this) {
+        val content = text.trim()
+        require(content.isNotEmpty()) { "O texto da IA está vazio." }
+        val now = System.currentTimeMillis()
+        val title = content.lineSequence()
+            .map { it.trim().trimStart('-', '*', '•').trim() }
+            .firstOrNull { it.isNotBlank() }
+            ?.take(120)
+            ?.ifBlank { "Tarefa criada pela IA" }
+            ?: "Tarefa criada pela IA"
+        val reminder = Reminder(
+            id = nextId(getAll()),
+            title = title,
+            content = content,
+            date = "",
+            priority = "Média",
+            category = "IA",
+            completed = false,
+            createdAt = now,
+            updatedAt = now
+        )
+        persist(getAll() + reminder)
+        reminder
+    }
+
     fun delete(id: Long) = synchronized(this) { persist(getAll().filterNot { it.id == id }) }
+
     fun setCompleted(id: Long, completed: Boolean) = synchronized(this) {
         val now = System.currentTimeMillis()
         persist(getAll().map { if (it.id == id) it.copy(completed = completed, updatedAt = now) else it })
@@ -28,6 +55,9 @@ class ReminderRepository(context: Context) {
         items.forEach { array.put(toJson(it)) }
         prefs.edit().putString(KEY_ITEMS, array.toString()).apply()
     }
+
+    private fun nextId(items: List<Reminder>): Long =
+        (items.maxOfOrNull { it.id } ?: 0L) + 1L
 
     private fun toJson(item: Reminder) = JSONObject().apply {
         put("id", item.id); put("title", item.title); put("content", item.content)
@@ -43,5 +73,8 @@ class ReminderRepository(context: Context) {
         updatedAt = json.optLong("updatedAt", System.currentTimeMillis())
     )
 
-    companion object { private const val PREFS = "clean_editor_reminders"; private const val KEY_ITEMS = "items" }
+    companion object {
+        private const val PREFS = "clean_editor_reminders"
+        private const val KEY_ITEMS = "items"
+    }
 }
