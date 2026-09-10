@@ -29,15 +29,9 @@ class ReminderRepository(context: Context) {
             ?.ifBlank { "Tarefa criada pela IA" }
             ?: "Tarefa criada pela IA"
         val reminder = Reminder(
-            id = nextId(getAll()),
-            title = title,
-            content = content,
-            date = "",
-            priority = "Média",
-            category = "IA",
-            completed = false,
-            createdAt = now,
-            updatedAt = now
+            id = nextId(getAll()), title = title, content = content, date = "",
+            priority = "Média", category = "IA", completed = false,
+            createdAt = now, updatedAt = now
         )
         persist(getAll() + reminder)
         reminder
@@ -56,13 +50,13 @@ class ReminderRepository(context: Context) {
         prefs.edit().putString(KEY_ITEMS, array.toString()).apply()
     }
 
-    private fun nextId(items: List<Reminder>): Long =
-        (items.maxOfOrNull { it.id } ?: 0L) + 1L
+    private fun nextId(items: List<Reminder>): Long = (items.maxOfOrNull { it.id } ?: 0L) + 1L
 
     private fun toJson(item: Reminder) = JSONObject().apply {
         put("id", item.id); put("title", item.title); put("content", item.content)
         put("date", item.date); put("priority", item.priority); put("category", item.category)
         put("completed", item.completed); put("createdAt", item.createdAt); put("updatedAt", item.updatedAt)
+        put("daily", item.daily); put("alarmTime", item.alarmTime); put("alarmEnabled", item.alarmEnabled)
     }
 
     private fun fromJson(json: JSONObject) = Reminder(
@@ -70,7 +64,9 @@ class ReminderRepository(context: Context) {
         date = json.optString("date"), priority = json.optString("priority", "Média"),
         category = json.optString("category", "Geral"), completed = json.optBoolean("completed"),
         createdAt = json.optLong("createdAt", System.currentTimeMillis()),
-        updatedAt = json.optLong("updatedAt", System.currentTimeMillis())
+        updatedAt = json.optLong("updatedAt", System.currentTimeMillis()),
+        daily = json.optBoolean("daily", false), alarmTime = json.optString("alarmTime", ""),
+        alarmEnabled = json.optBoolean("alarmEnabled", false)
     )
 
     companion object {
