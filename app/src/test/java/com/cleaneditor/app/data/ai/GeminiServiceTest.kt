@@ -64,6 +64,35 @@ class GeminiServiceTest {
     }
 
     @Test
+    fun missingContentFails() {
+        val result = service.parseResponse("""{"candidates":[{}]}""")
+        assertTrue(result.isFailure)
+        assertEquals("Resposta do Gemini sem conteúdo.", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun multipleResponsePartsAreCombined() {
+        val response = """
+            {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {"text": "Primeira parte "},
+                                {"text": "e segunda parte."}
+                            ]
+                        }
+                    }
+                ]
+            }
+        """.trimIndent()
+
+        val result = service.parseResponse(response)
+        assertTrue(result.isSuccess)
+        assertEquals("Primeira parte e segunda parte.", result.getOrNull())
+    }
+
+    @Test
     fun validApiResponseReturnsExtractedText() {
         val validResponse = """
             {
