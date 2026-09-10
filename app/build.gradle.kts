@@ -4,6 +4,12 @@ plugins {
     alias(libs.plugins.secrets)
 }
 
+val ciDebugKeystore = rootProject.file("app/ci-debug.keystore")
+val ciVersionCode = System.getenv("GITHUB_RUN_NUMBER")
+    ?.toIntOrNull()
+    ?.takeIf { it > 0 }
+    ?: 1
+
 android {
     namespace = "com.cleaneditor.app"
     compileSdk = 36
@@ -12,16 +18,29 @@ android {
         applicationId = "com.cleaneditor.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
+        versionCode = ciVersionCode
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (ciDebugKeystore.exists()) {
+            create("ciDebug") {
+                storeFile = ciDebugKeystore
+                storePassword = "cleaneditor-debug"
+                keyAlias = "cleaneditordebug"
+                keyPassword = "cleaneditor-debug"
+            }
+        }
+    }
+
     buildTypes {
         debug {
-            // Use Android Gradle Plugin's standard debug signing configuration.
-            // This generates/uses the runner-local debug keystore automatically.
+            // CI provides a stable debug keystore so APKs can be installed as updates.
+            if (ciDebugKeystore.exists()) {
+                signingConfig = signingConfigs.getByName("ciDebug")
+            }
         }
         release {
             isMinifyEnabled = false
