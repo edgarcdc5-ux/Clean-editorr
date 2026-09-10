@@ -65,6 +65,7 @@ import com.cleaneditor.app.data.repository.ReminderRepository
 import com.cleaneditor.app.ui.shared.CleanEditorHeader
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 
 private val priorities = listOf("Baixa", "Média", "Alta")
@@ -239,7 +240,6 @@ private fun ReminderEditorForm(initial: Reminder?, initialContent: String, onCan
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(content, { content = it }, Modifier.fillMaxWidth().height(150.dp).testTag("reminder_content"), label = { Text("Conteúdo") })
             Spacer(Modifier.height(8.dp))
-
             OutlinedTextField(
                 value = date.toDisplayDate(),
                 onValueChange = {},
@@ -298,8 +298,7 @@ private fun ReminderEditorForm(initial: Reminder?, initialContent: String, onCan
     }
 
     if (showDatePicker) {
-        val initialMillis = date.toPickerMillis()
-        val dateState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+        val dateState = rememberDatePickerState(initialSelectedDateMillis = date.toPickerMillis())
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
@@ -314,7 +313,7 @@ private fun ReminderEditorForm(initial: Reminder?, initialContent: String, onCan
 
     if (showTimePicker) {
         val parsed = alarmTime.split(":").mapNotNull { it.toIntOrNull() }
-        val timeState = rememberTimePickerState(initialHour = parsed.getOrNull(0) ?: 8, initialMinute = parsed.getOrNull(1) ?: 0, is24Hour = true)
+        val timeState = rememberTimePickerState(initialHour = parsed.getOrNull(0)?.coerceIn(0, 23) ?: 8, initialMinute = parsed.getOrNull(1)?.coerceIn(0, 59) ?: 0, is24Hour = true)
         TimePickerDialog(
             onDismissRequest = { showTimePicker = false },
             confirmButton = {
@@ -330,13 +329,12 @@ private fun ReminderEditorForm(initial: Reminder?, initialContent: String, onCan
 
 private fun String.toDisplayDate(): String = runCatching {
     storageDateFormat.parse(this)?.let(displayDateFormat::format)
-}.getOrNull() ?: this
+}.getOrNull() ?: if (isBlank()) "" else this
 
-private fun String.toPickerMillis(): Long? = runCatching { storageDateFormat.parse(this)?.time }.getOrNull()
+private fun String.toPickerMillis(): Long? = runCatching {
+    storageDateFormat.parse(this)?.time
+}.getOrNull()
 
-private fun Long.toStorageDate(): String = runCatching { storageDateFormat.format(Date(this)) }.getOrDefault("")
-
-private fun Long.toStorageDate(): String {
-    val calendar = Calendar.getInstance().apply { timeInMillis = this@toStorageDate }
-    return storageDateFormat.format(calendar.time)
-}
+private fun Long.toStorageDate(): String = runCatching {
+    storageDateFormat.format(Date(this))
+}.getOrDefault("")
