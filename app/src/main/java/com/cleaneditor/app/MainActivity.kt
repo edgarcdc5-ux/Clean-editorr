@@ -4,14 +4,19 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -20,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -61,7 +67,9 @@ private fun CleanEditorShell(currentTheme: AppThemeSetting, onThemeChange: (AppT
     var reminderDraftContent by remember { mutableStateOf<String?>(null) }
 
     fun openEditor(text: String? = null, file: FileItem? = null) {
-        editorInitialText = text; selectedFile = file; activeDestination = NavigationDestination.Editor
+        editorInitialText = text
+        selectedFile = file
+        activeDestination = NavigationDestination.Editor
     }
 
     fun openAi(prompt: String) {
@@ -72,33 +80,90 @@ private fun CleanEditorShell(currentTheme: AppThemeSetting, onThemeChange: (AppT
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         if (activeDestination == NavigationDestination.Editor) {
             EditorScreen(
-                onBack = { activeDestination = NavigationDestination.Home; selectedFile = null; editorInitialText = null },
+                onBack = {
+                    activeDestination = NavigationDestination.Home
+                    selectedFile = null
+                    editorInitialText = null
+                },
                 initialFile = selectedFile,
                 initialText = editorInitialText,
-                onCreateReminder = { content -> reminderDraftContent = content; activeDestination = NavigationDestination.Reminders }
+                onCreateReminder = { content ->
+                    reminderDraftContent = content
+                    activeDestination = NavigationDestination.Reminders
+                }
             )
         } else {
-            Scaffold(Modifier.fillMaxSize().statusBarsPadding(), bottomBar = {
-                NavigationBar(Modifier.navigationBarsPadding().testTag("clean_editor_bottom_bar"), containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 6.dp) {
-                    NavigationDestination.items.forEach { destination ->
-                        val isSelected = activeDestination == destination
-                        NavigationBarItem(
-                            modifier = Modifier.testTag(destination.testTag), selected = isSelected,
-                            onClick = { activeDestination = destination },
-                            icon = { Icon(if (isSelected) destination.selectedIcon else destination.unselectedIcon, stringResource(destination.labelRes)) },
-                            label = { Text(stringResource(destination.labelRes), style = MaterialTheme.typography.labelSmall) }
-                        )
+            Scaffold(Modifier.fillMaxSize().statusBarsPadding()) { innerPadding ->
+                Row(Modifier.fillMaxSize().padding(innerPadding)) {
+                    NavigationRail(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .testTag("clean_editor_vertical_menu"),
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 6.dp
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .padding(vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "CleanEditor",
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            NavigationDestination.items.forEach { destination ->
+                                val isSelected = activeDestination == destination
+                                NavigationRailItem(
+                                    modifier = Modifier.testTag(destination.testTag),
+                                    selected = isSelected,
+                                    onClick = { activeDestination = destination },
+                                    icon = {
+                                        Icon(
+                                            if (isSelected) destination.selectedIcon else destination.unselectedIcon,
+                                            stringResource(destination.labelRes)
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            stringResource(destination.labelRes),
+                                            style = MaterialTheme.typography.labelSmall
+                                        )
+                                    }
+                                )
+                                Spacer(Modifier.height(2.dp))
+                            }
+                        }
                     }
-                }
-            }) { innerPadding ->
-                Box(Modifier.fillMaxSize().padding(innerPadding)) {
-                    when (activeDestination) {
-                        NavigationDestination.Home -> HomeScreen(onNavigateTo = { destination -> if (destination == NavigationDestination.Editor) openEditor() else activeDestination = destination }, onOpenEditor = { openEditor() })
-                        NavigationDestination.Files -> FilesScreen(onOpenFile = { file -> openEditor(file = file) }, onOpenAi = ::openAi)
-                        NavigationDestination.Reminders -> RemindersScreen(initialContent = reminderDraftContent, onDraftConsumed = { reminderDraftContent = null }, onOpenEditor = { text -> openEditor(text = text) })
-                        NavigationDestination.Ai -> AiScreen(initialPrompt = aiInitialPrompt, onOpenEditor = { response -> openEditor(text = response) })
-                        NavigationDestination.Settings -> SettingsScreen(currentTheme = currentTheme, onThemeChange = onThemeChange)
-                        NavigationDestination.Editor -> Unit
+                    Box(Modifier.fillMaxSize()) {
+                        when (activeDestination) {
+                            NavigationDestination.Home -> HomeScreen(
+                                onNavigateTo = { destination ->
+                                    if (destination == NavigationDestination.Editor) openEditor()
+                                    else activeDestination = destination
+                                },
+                                onOpenEditor = { openEditor() }
+                            )
+                            NavigationDestination.Files -> FilesScreen(
+                                onOpenFile = { file -> openEditor(file = file) },
+                                onOpenAi = ::openAi
+                            )
+                            NavigationDestination.Reminders -> RemindersScreen(
+                                initialContent = reminderDraftContent,
+                                onDraftConsumed = { reminderDraftContent = null },
+                                onOpenEditor = { text -> openEditor(text = text) }
+                            )
+                            NavigationDestination.Ai -> AiScreen(
+                                initialPrompt = aiInitialPrompt,
+                                onOpenEditor = { response -> openEditor(text = response) }
+                            )
+                            NavigationDestination.Settings -> SettingsScreen(
+                                currentTheme = currentTheme,
+                                onThemeChange = onThemeChange
+                            )
+                            NavigationDestination.Editor -> Unit
+                        }
                     }
                 }
             }
