@@ -1,6 +1,7 @@
 package com.cleaneditor.app.ui.reminders
 
 import android.Manifest
+import android.app.TimePickerDialog
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -12,8 +13,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -42,10 +43,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.TimePickerDialog
 import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -55,7 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.testTag
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -64,13 +62,13 @@ import com.cleaneditor.app.data.reminders.ReminderAlarmScheduler
 import com.cleaneditor.app.data.repository.ReminderRepository
 import com.cleaneditor.app.ui.shared.CleanEditorHeader
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 private val priorities = listOf("Baixa", "Média", "Alta")
 private val statusFilters = listOf("Todos", "Pendentes", "Concluídos")
-private val storageDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+private val storageDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
 private val displayDateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
 @Composable
@@ -91,6 +89,7 @@ fun RemindersScreen(
     var searchQuery by remember { mutableStateOf("") }
     var statusFilter by remember { mutableStateOf("Todos") }
     var pendingAlarmReminder by remember { mutableStateOf<Reminder?>(null) }
+
     val requestNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         pendingAlarmReminder?.let { if (granted) scheduler.schedule(it) }
         pendingAlarmReminder = null
@@ -121,28 +120,16 @@ fun RemindersScreen(
     }
 
     if (creating || editing != null) {
-        ReminderEditorForm(
-            editing,
-            formInitialContent,
-            { creating = false; editing = null; formInitialContent = "" },
-            ::saveReminder
-        )
+        ReminderEditorForm(editing, formInitialContent, { creating = false; editing = null; formInitialContent = "" }, ::saveReminder)
         return
     }
 
     val filtered = reminders
         .filter { item ->
             val query = searchQuery.trim()
-            query.isBlank() || listOf(item.title, item.content, item.category, item.priority, item.date, item.alarmTime)
-                .any { it.contains(query, ignoreCase = true) }
+            query.isBlank() || listOf(item.title, item.content, item.category, item.priority, item.date, item.alarmTime).any { it.contains(query, ignoreCase = true) }
         }
-        .filter { item ->
-            when (statusFilter) {
-                "Pendentes" -> !item.completed
-                "Concluídos" -> item.completed
-                else -> true
-            }
-        }
+        .filter { item -> when (statusFilter) { "Pendentes" -> !item.completed; "Concluídos" -> item.completed; else -> true } }
         .sortedWith(compareBy<Reminder> { it.completed }.thenBy { it.date.ifBlank { "9999-99-99" } }.thenByDescending { priorities.indexOf(it.priority) })
 
     Scaffold(
@@ -173,7 +160,12 @@ fun RemindersScreen(
             } else {
                 LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(filtered, key = { it.id }) { item ->
-                        ReminderCard(item, { val next = !item.completed; repository.setCompleted(item.id, next); if (next) scheduler.cancel(item.id) else if (item.daily && item.alarmEnabled) scheduler.schedule(item); refresh() }, { editing = item }, { deleteTarget = item }, { onOpenEditor(item.content) })
+                        ReminderCard(item, {
+                            val next = !item.completed
+                            repository.setCompleted(item.id, next)
+                            if (next) scheduler.cancel(item.id) else if (item.daily && item.alarmEnabled) scheduler.schedule(item)
+                            refresh()
+                        }, { editing = item }, { deleteTarget = item }, { onOpenEditor(item.content) })
                     }
                     item { Spacer(Modifier.height(72.dp)) }
                 }
@@ -182,9 +174,13 @@ fun RemindersScreen(
     }
 
     deleteTarget?.let { item ->
-        AlertDialog(onDismissRequest = { deleteTarget = null }, title = { Text("Excluir lembrete?") }, text = { Text("\"${item.title}\" será removido permanentemente deste dispositivo.") },
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("Excluir lembrete?") },
+            text = { Text("\"${item.title}\" será removido permanentemente deste dispositivo.") },
             confirmButton = { TextButton(onClick = { scheduler.cancel(item.id); repository.delete(item.id); deleteTarget = null; refresh() }) { Text("Excluir") } },
-            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Cancelar") } })
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Cancelar") } }
+        )
     }
 }
 
@@ -222,32 +218,22 @@ private fun ReminderEditorForm(initial: Reminder?, initialContent: String, onCan
     var alarmTime by remember(initial?.id) { mutableStateOf(initial?.alarmTime ?: "08:00") }
     var alarmEnabled by remember(initial?.id) { mutableStateOf(initial?.alarmEnabled ?: true) }
     var showDatePicker by remember { mutableStateOf(false) }
-    var showTimePicker by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+    val context = LocalContext.current
     val valid = title.isNotBlank()
     val validTime = alarmTime.matches(Regex("^([01]\\d|2[0-3]):[0-5]\\d$"))
-    val scrollState = rememberScrollState()
 
     Column(Modifier.fillMaxSize().testTag("screen_reminder_form")) {
-        Column(
-            Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp)
-        ) {
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(scrollState).padding(horizontal = 16.dp)) {
             CleanEditorHeader(title = if (initial == null) "Novo lembrete" else "Editar lembrete", subtitle = "Todos os campos ficam salvos localmente")
             OutlinedTextField(title, { title = it }, Modifier.fillMaxWidth().testTag("reminder_title"), label = { Text("Título") }, singleLine = true)
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(content, { content = it }, Modifier.fillMaxWidth().height(150.dp).testTag("reminder_content"), label = { Text("Conteúdo") })
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
-                value = date.toDisplayDate(),
-                onValueChange = {},
-                modifier = Modifier.fillMaxWidth().testTag("reminder_date"),
-                label = { Text("Data") },
-                readOnly = true,
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Filled.CalendarMonth, contentDescription = "Selecionar data") },
+                value = date.toDisplayDate(), onValueChange = {}, modifier = Modifier.fillMaxWidth().testTag("reminder_date"),
+                label = { Text("Data") }, readOnly = true, singleLine = true,
+                leadingIcon = { Icon(Icons.Filled.CalendarMonth, "Selecionar data") },
                 trailingIcon = { TextButton(onClick = { showDatePicker = true }) { Text("Calendário") } }
             )
             Spacer(Modifier.height(8.dp))
@@ -259,14 +245,17 @@ private fun ReminderEditorForm(initial: Reminder?, initialContent: String, onCan
             }
             if (daily) {
                 OutlinedTextField(
-                    value = alarmTime,
-                    onValueChange = {},
-                    modifier = Modifier.fillMaxWidth().testTag("reminder_alarm_time"),
-                    label = { Text("Horário do alarme") },
-                    readOnly = true,
-                    singleLine = true,
-                    leadingIcon = { Icon(Icons.Filled.Schedule, contentDescription = "Selecionar horário") },
-                    trailingIcon = { TextButton(onClick = { showTimePicker = true }) { Text("Escolher") } }
+                    value = alarmTime, onValueChange = {}, modifier = Modifier.fillMaxWidth().testTag("reminder_alarm_time"),
+                    label = { Text("Horário do alarme") }, readOnly = true, singleLine = true,
+                    leadingIcon = { Icon(Icons.Filled.Schedule, "Selecionar horário") },
+                    trailingIcon = {
+                        TextButton(onClick = {
+                            val parts = alarmTime.split(":")
+                            val hour = parts.getOrNull(0)?.toIntOrNull()?.coerceIn(0, 23) ?: 8
+                            val minute = parts.getOrNull(1)?.toIntOrNull()?.coerceIn(0, 59) ?: 0
+                            TimePickerDialog(context, { _, h, m -> alarmTime = "%02d:%02d".format(Locale.US, h, m) }, hour, minute, true).show()
+                        }) { Text("Escolher") }
+                    }
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = alarmEnabled, onCheckedChange = { alarmEnabled = it }, modifier = Modifier.testTag("reminder_alarm_enabled"))
@@ -276,24 +265,21 @@ private fun ReminderEditorForm(initial: Reminder?, initialContent: String, onCan
             }
             Spacer(Modifier.height(8.dp))
             Text("Prioridade", style = MaterialTheme.typography.labelLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { priorities.forEach { value -> TextButton(onClick = { priority = value }, modifier = Modifier.testTag("priority_$value")) { Text(if (priority == value) "✓ $value" else value) } } }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                priorities.forEach { value -> TextButton(onClick = { priority = value }, modifier = Modifier.testTag("priority_$value")) { Text(if (priority == value) "✓ $value" else value) } }
+            }
             Spacer(Modifier.height(16.dp))
         }
-
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onCancel) { Text("Cancelar") }
             Button(enabled = valid && (!daily || validTime), onClick = {
                 val now = System.currentTimeMillis()
-                onSave(initial?.copy(title = title.trim(), content = content, date = date, priority = priority, category = category.trim(), updatedAt = now, daily = daily, alarmTime = if (daily) alarmTime else "", alarmEnabled = daily && alarmEnabled)
-                    ?: Reminder(now, title.trim(), content, date, priority, category.trim(), false, now, now, daily, if (daily) alarmTime else "", daily && alarmEnabled))
-            }, modifier = Modifier.testTag("btn_reminder_save")) { Icon(Icons.Filled.Check, null); Text("Salvar") }
+                onSave(initial?.copy(title = title.trim(), content = content, date = date.trim(), priority = priority, category = category.trim(), updatedAt = now, daily = daily, alarmTime = if (daily) alarmTime else "", alarmEnabled = daily && alarmEnabled)
+                    ?: Reminder(now, title.trim(), content, date.trim(), priority, category.trim(), false, now, now, daily, if (daily) alarmTime else "", daily && alarmEnabled))
+            }, modifier = Modifier.testTag("btn_reminder_save")) {
+                Icon(Icons.Filled.Check, null)
+                Text("Salvar")
+            }
         }
     }
 
@@ -302,39 +288,19 @@ private fun ReminderEditorForm(initial: Reminder?, initialContent: String, onCan
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
-                TextButton(onClick = {
-                    dateState.selectedDateMillis?.let { date = it.toStorageDate() }
-                    showDatePicker = false
-                }) { Text("OK") }
+                TextButton(onClick = { dateState.selectedDateMillis?.let { date = it.toStorageDate() }; showDatePicker = false }) { Text("OK") }
             },
             dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancelar") } }
         ) { DatePicker(state = dateState) }
     }
-
-    if (showTimePicker) {
-        val parsed = alarmTime.split(":").mapNotNull { it.toIntOrNull() }
-        val timeState = rememberTimePickerState(initialHour = parsed.getOrNull(0)?.coerceIn(0, 23) ?: 8, initialMinute = parsed.getOrNull(1)?.coerceIn(0, 59) ?: 0, is24Hour = true)
-        TimePickerDialog(
-            onDismissRequest = { showTimePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    alarmTime = "%02d:%02d".format(Locale.US, timeState.hour, timeState.minute)
-                    showTimePicker = false
-                }) { Text("OK") }
-            },
-            dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("Cancelar") } }
-        ) { TimePicker(state = timeState) }
-    }
 }
 
 private fun String.toDisplayDate(): String = runCatching {
-    storageDateFormat.parse(this)?.let(displayDateFormat::format)
-}.getOrNull() ?: if (isBlank()) "" else this
+    if (isBlank()) "" else storageDateFormat.parse(this)?.let(displayDateFormat::format) ?: this
+}.getOrDefault(this)
 
 private fun String.toPickerMillis(): Long? = runCatching {
-    storageDateFormat.parse(this)?.time
+    if (isBlank()) null else storageDateFormat.parse(this)?.time
 }.getOrNull()
 
-private fun Long.toStorageDate(): String = runCatching {
-    storageDateFormat.format(Date(this))
-}.getOrDefault("")
+private fun Long.toStorageDate(): String = storageDateFormat.format(Date(this))
