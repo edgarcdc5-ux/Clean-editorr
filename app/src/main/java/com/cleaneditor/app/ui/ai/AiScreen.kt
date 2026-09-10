@@ -38,6 +38,7 @@ import com.cleaneditor.app.data.ai.AiHistoryEntry
 import com.cleaneditor.app.data.ai.AiHistoryStore
 import com.cleaneditor.app.data.ai.GeminiService
 import com.cleaneditor.app.data.ai.buildAiPrompt
+import com.cleaneditor.app.data.repository.ReminderRepository
 import com.cleaneditor.app.ui.shared.CleanEditorHeader
 import kotlinx.coroutines.launch
 
@@ -52,12 +53,14 @@ fun AiScreen(
     val clipboard = LocalClipboardManager.current
     val service = remember { GeminiService() }
     val historyStore = remember { AiHistoryStore(context) }
+    val reminderRepository = remember { ReminderRepository(context) }
     val history = remember { mutableStateListOf<AiHistoryEntry>().also { it.addAll(historyStore.load()) } }
     var prompt by remember { mutableStateOf(initialPrompt.take(GeminiService.MAX_PROMPT_CHARS)) }
     var response by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var selectedAction by remember { mutableStateOf<AiAction?>(null) }
+    var reminderSaved by remember { mutableStateOf(false) }
 
     LaunchedEffect(initialPrompt) {
         if (initialPrompt.isNotBlank()) prompt = initialPrompt.take(GeminiService.MAX_PROMPT_CHARS)
@@ -70,6 +73,7 @@ fun AiScreen(
             prompt = text.take(GeminiService.MAX_PROMPT_CHARS)
             response = ""
             error = ""
+            reminderSaved = false
         } else {
             error = "A área de transferência está vazia. Selecione e copie um texto no editor primeiro."
         }
@@ -87,6 +91,7 @@ fun AiScreen(
         loading = true
         response = ""
         error = ""
+        reminderSaved = false
         selectedAction = action
         scope.launch {
             service.generate(promptToSend)
@@ -107,6 +112,13 @@ fun AiScreen(
         request(buildAiPrompt(action, prompt.trim()), action)
     }
 
+    fun saveResponseAsReminder() {
+        if (response.isBlank() || loading) return
+        runCatching { reminderRepository.createFromAi(response) }
+            .onSuccess { reminderSaved = true; error = "" }
+            .onFailure { error = it.message ?: "Não foi possível criar a tarefa." }
+    }
+
     Column(
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 16.dp).testTag("screen_ai"),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -122,7 +134,7 @@ fun AiScreen(
         }
         OutlinedTextField(
             value = prompt,
-            onValueChange = { prompt = it.take(GeminiService.MAX_PROMPT_CHARS); error = "" },
+            onValueChange = { prompt = it.take(GeminiService.MAX_PROMPT_CHARS); error = ""; reminderSaved = false },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).testTag("ai_prompt_input"),
             minLines = 5,
             label = { Text(stringResource(R.string.ai_prompt_label)) },
@@ -162,13 +174,22 @@ fun AiScreen(
                     OutlinedButton(onClick = { clipboard.setText(androidx.compose.ui.text.AnnotatedString(response)) }, modifier = Modifier.weight(1f).testTag("ai_copy_response")) { Text("Copiar") }
                     Button(onClick = { onOpenEditor(response) }, modifier = Modifier.weight(1f).testTag("ai_apply_editor")) { Text("Aplicar no editor") }
                 }
+                if (selectedAction == AiAction.TASK) {
+                    OutlinedButton(
+                        onClick = { saveResponseAsReminder() },
+                        enabled = !loading && !reminderSaved,
+                        modifier = Modifier.fillMaxWidth().testTag("ai_save_task")
+                    ) {
+                        Text(if (reminderSaved) "Tarefa salva em Lembretes" else "Salvar como lembrete")
+                    }
+                }
             }
         }
         if (history.isNotEmpty()) {
             Text("Histórico recente", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 16.dp))
             history.take(10).forEachIndexed { index, entry ->
                 OutlinedButton(
-                    onClick = { prompt = entry.prompt; response = entry.response; selectedAction = AiAction.entries.firstOrNull { it.name == entry.action }; error = "" },
+                    onClick = { prompt = entry.prompt; response = entry.response; selectedAction = AiAction.entries.firstOrNull { it.name == entry.action }; error = ""; reminderSaved = false },
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).testTag("ai_history_$index")
                 ) { Text("${entry.action}: ${entry.response.replace("\n", " ").take(90)}") }
             }
