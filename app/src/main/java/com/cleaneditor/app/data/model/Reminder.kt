@@ -10,5 +10,8 @@ data class Reminder(
     val category: String,
     val completed: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val daily: Boolean = false,
+    val alarmTime: String = "",
+    val alarmEnabled: Boolean = false
 )
