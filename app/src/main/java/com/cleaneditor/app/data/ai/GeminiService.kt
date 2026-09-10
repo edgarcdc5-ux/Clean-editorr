@@ -15,9 +15,8 @@ import java.net.URL
 class GeminiService {
     companion object {
         const val MAX_PROMPT_CHARS = 20_000
-        const val MODEL = "gemini-2.5-flash"
+        const val MODEL = "gemini-3.6-flash"
         private const val MAX_OUTPUT_TOKENS = 2_048
-        private const val TEMPERATURE = 0.3
         private const val MAX_ATTEMPTS = 2
     }
 
@@ -56,17 +55,17 @@ class GeminiService {
     }
 
     private fun request(prompt: String, apiKey: String): String {
-        val url = URL("https://generativelanguage.googleapis.com/v1beta/models/$MODEL:generateContent?key=$apiKey")
+        val url = URL("https://generativelanguage.googleapis.com/v1beta/models/$MODEL:generateContent")
         val connection = (url.openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15_000
             readTimeout = 45_000
             doOutput = true
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
+            setRequestProperty("x-goog-api-key", apiKey)
         }
         try {
             val generationConfig = JSONObject()
-                .put("temperature", TEMPERATURE)
                 .put("maxOutputTokens", MAX_OUTPUT_TOKENS)
             val body = JSONObject()
                 .put("contents", JSONArray().put(
