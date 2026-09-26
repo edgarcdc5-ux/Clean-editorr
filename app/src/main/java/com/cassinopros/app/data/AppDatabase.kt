@@ -25,7 +25,9 @@ data class SlotEntity(@PrimaryKey(autoGenerate=true) val id:Long=0,val name:Stri
  @Query("UPDATE sessions SET endingCents=:ending,resultCents=:result,endedAt=:endedAt,status='FINISHED' WHERE id=:id") suspend fun finish(id:Long,ending:Long,result:Long,endedAt:Long)
  @Query("UPDATE sessions SET wageredCents=wageredCents+:wagered,receivedCents=receivedCents+:received,resultCents=:result WHERE id=:id") suspend fun register(id:Long,wagered:Long,received:Long,result:Long)
 }
-@Dao interface SlotDao{@Query("SELECT * FROM slots ORDER BY name COLLATE NOCASE") fun observeAll():Flow<List<SlotEntity>>;@Insert suspend fun insert(slot:SlotEntity):Long;@Delete suspend fun delete(slot:SlotEntity)}
+@Dao interface SlotDao{@Query("SELECT * FROM slots ORDER BY name COLLATE NOCASE") fun observeAll():Flow<List<SlotEntity>>;@Insert suspend fun insert(slot:SlotEntity):Long;@Delete suspend fun delete(slot:SlotEntity)
+ @Update suspend fun update(slot:SlotEntity)
+}
 
 @Database(entities=[BankrollEntity::class,SessionEntity::class,SlotEntity::class],version=3,exportSchema=false)
 abstract class AppDatabase:RoomDatabase(){
