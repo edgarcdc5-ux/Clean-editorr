@@ -17,4 +17,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10'
-      - run: gradle assembleDebug
+      - name: Assemble debug APK
+        run: gradle --no-daemon assembleDebug
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: cassino-pros-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
