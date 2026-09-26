@@ -161,7 +161,7 @@ private fun money(c:Long)=String.format(Locale("pt","BR"),"R$ %,.2f",c/100.0)
   item{Text("Limites da sessão",color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)}
   item{Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){Metric("STOP LOSS",money(stop),Modifier.weight(1f));Metric("META",money(target),Modifier.weight(1f))}}
   item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){OutlinedButton({stop=(stop-1000).coerceAtLeast(1000)},Modifier.weight(1f)){Text("- Stop")};OutlinedButton({target+=1000},Modifier.weight(1f)){Text("+ Meta")}}}
-  item{Button({vm.startSession(app?.loadLabel(ctx.packageManager)?.toString()?:"",app?.activityInfo?.packageName?:"",slot?.name?:"",stop,target);started()},Modifier.fillMaxWidth().height(58.dp),colors=ButtonDefaults.buttonColors(containerColor=Lime,contentColor=Navy),enabled=app!=null){
+  item{Button({vm.startSession(app?.loadLabel(ctx.packageManager)?.toString()?:"",app?.activityInfo?.packageName?:"",slot?.name?:"",stop,target,slot?.defaultStakeCents?:100);started()},Modifier.fillMaxWidth().height(58.dp),colors=ButtonDefaults.buttonColors(containerColor=Lime,contentColor=Navy),enabled=app!=null){
    Text("INICIAR SESSÃO",fontWeight=FontWeight.Bold)
   }}
  }
