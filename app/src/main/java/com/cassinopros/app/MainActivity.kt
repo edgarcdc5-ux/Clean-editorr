@@ -45,9 +45,23 @@ private val Navy=Color(0xFF0A1228);private val Glass=Color(0x12FFFFFF);private v
 private val Neon=Color(0xFF00FF88);private val Lime=Color(0xFFB4FF39);private val Loss=Color(0xFFFF5A5A);private val Muted=Color(0xFF9BA5BD)
 private fun money(c:Long)=String.format(Locale("pt","BR"),"R$ %,.2f",c/100.0)
 
-@Composable fun CasinoPros(vm:CasinoProsViewModel=viewModel()){
+@Composable fun CasinoPros(vm:CasinoProsViewModel=viewModel(),initialDestination:String?=null){
  val b by vm.bankroll.collectAsState();val sessions by vm.sessions.collectAsState();val slots by vm.slots.collectAsState()
- var tab by remember{mutableIntStateOf(0)};var page by remember{mutableStateOf("home")};val active=sessions.firstOrNull{it.status=="ACTIVE"};val ctx=LocalContext.current
+ var tab by remember{mutableIntStateOf(if(initialDestination=="bankroll")1 else if(initialDestination=="history")3 else if(initialDestination=="stats")4 else 0)}
+ var page by remember{mutableStateOf(if(initialDestination=="new")"new" else "home")}
+ val active=sessions.firstOrNull{it.status=="ACTIVE"}
+ val ctx=LocalContext.current
+ LaunchedEffect(initialDestination){
+  when(initialDestination){
+   "new"->{page="new"}
+   "home"->{page="home";tab=0}
+   "bankroll"->{page="home";tab=1}
+   "slots"->{page="home";tab=2}
+   "history"->{page="home";tab=3}
+   "stats"->{page="home";tab=4}
+   "active"->{if(active!=null)page="active" else {page="home";tab=0}}
+  }
+ }
  MaterialTheme(colorScheme=darkColorScheme(background=Navy,surface=Navy,primary=Neon,onPrimary=Navy)){
   Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Navy,Color(0xFF111A38))))){
    when(page){
