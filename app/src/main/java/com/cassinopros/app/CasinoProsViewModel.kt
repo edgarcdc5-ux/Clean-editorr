@@ -30,6 +30,9 @@ class CasinoProsViewModel(app:Application):AndroidViewModel(app){
         db.bankrollDao().save(b.copy(currentCents=next,updatedAt=System.currentTimeMillis()))
         val result=next-active.startingCents
         db.sessionDao().register(active.id,if(cents<0)-cents else cents,if(cents>0)cents else 0,result)
+        if(result >= active.targetCents || result <= -active.stopLossCents){
+            db.sessionDao().finish(active.id,next,result,System.currentTimeMillis())
+        }
     }
     fun finishLatest()=viewModelScope.launch{
         val active=sessions.value.firstOrNull{it.status=="ACTIVE"}?:return@launch
