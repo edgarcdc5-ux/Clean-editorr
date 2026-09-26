@@ -107,7 +107,16 @@ private fun money(c:Long)=String.format(Locale("pt","BR"),"R$ %,.2f",c/100.0)
 }
 @Composable private fun Quick(t:String,c:Color,onClick:()->Unit)=Button(onClick,shape=RoundedCornerShape(14.dp),modifier=Modifier.weight(1f).height(50.dp),colors=ButtonDefaults.buttonColors(containerColor=Glass2)){Text(t,color=c,fontWeight=FontWeight.Bold)}
 @Composable private fun Result(s:SessionEntity,vm:CasinoProsViewModel,back:()->Unit){
- LazyColumn(Modifier.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){item{Header("Registrar Resultado","Adição rápida ao histórico",back)};item{CardGlass{Text("RESULTADO DA SESSÃO",color=Lime,fontWeight=FontWeight.Bold);Text("Um toque atualiza a banca e o histórico.",color=Muted,fontSize=18.sp)}};item{listOf(1000L,2000L,5000L,10000L,-1000L,-2000L,-5000L,-10000L).chunked(2).forEach{row->Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){row.forEach{v->Button({vm.registerResult(v);back()},Modifier.weight(1f),colors=ButtonDefaults.buttonColors(containerColor=Glass2)){Text((if(v>0)"+" else "-")+money(kotlin.math.abs(v)),color=if(v>0)Neon else Loss)}};Spacer(Modifier.height(8.dp))}}}}
+ LazyColumn(Modifier.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
+  item{Header("Registrar Resultado","Adição rápida ao histórico",back)}
+  item{CardGlass{Text("RESULTADO DA SESSÃO",color=Lime,fontWeight=FontWeight.Bold);Text("Um toque atualiza a banca e o histórico.",color=Muted,fontSize=18.sp)}}
+  listOf(1000L,2000L,5000L,10000L,-1000L,-2000L,-5000L,-10000L).chunked(2).forEach{row->
+   item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){row.forEach{v->
+    Button({vm.registerResult(v);back()},Modifier.weight(1f),colors=ButtonDefaults.buttonColors(containerColor=Glass2)){
+     Text((if(v>0)"+" else "-")+money(kotlin.math.abs(v)),color=if(v>0)Neon else Loss)
+    }
+   }}}
+  }
  }
 }
 @Composable private fun Bankroll(m:Modifier,current:Long,reserve:Long,vm:CasinoProsViewModel){
