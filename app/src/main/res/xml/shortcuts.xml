@@ -4,8 +4,8 @@
         android:shortcutId="new_session"
         android:enabled="true"
         android:icon="@drawable/ic_shortcut"
-        android:shortcutShortLabel="Nova sessão"
-        android:shortcutLongLabel="Iniciar nova sessão">
+        android:shortcutShortLabel="@string/shortcut_new_short"
+        android:shortcutLongLabel="@string/shortcut_new_long">
         <intent
             android:action="android.intent.action.VIEW"
             android:targetPackage="com.cassinopros.app"
@@ -17,8 +17,8 @@
         android:shortcutId="bankroll"
         android:enabled="true"
         android:icon="@drawable/ic_shortcut"
-        android:shortcutShortLabel="Minha banca"
-        android:shortcutLongLabel="Abrir minha banca">
+        android:shortcutShortLabel="@string/shortcut_bankroll_short"
+        android:shortcutLongLabel="@string/shortcut_bankroll_long">
         <intent
             android:action="android.intent.action.VIEW"
             android:targetPackage="com.cassinopros.app"
@@ -30,8 +30,8 @@
         android:shortcutId="history"
         android:enabled="true"
         android:icon="@drawable/ic_shortcut"
-        android:shortcutShortLabel="Histórico"
-        android:shortcutLongLabel="Abrir histórico">
+        android:shortcutShortLabel="@string/shortcut_history_short"
+        android:shortcutLongLabel="@string/shortcut_history_long">
         <intent
             android:action="android.intent.action.VIEW"
             android:targetPackage="com.cassinopros.app"
@@ -43,8 +43,8 @@
         android:shortcutId="stats"
         android:enabled="true"
         android:icon="@drawable/ic_shortcut"
-        android:shortcutShortLabel="Estatísticas"
-        android:shortcutLongLabel="Abrir estatísticas">
+        android:shortcutShortLabel="@string/shortcut_stats_short"
+        android:shortcutLongLabel="@string/shortcut_stats_long">
         <intent
             android:action="android.intent.action.VIEW"
             android:targetPackage="com.cassinopros.app"
