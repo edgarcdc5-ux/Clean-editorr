@@ -197,6 +197,12 @@ private fun shownMoney(c:Long,hidden:Boolean)=if(hidden)"R$ ••••••" 
     hideValues:Boolean, setHide:(Boolean)->Unit, back:()->Unit
 ){
     val ctx=LocalContext.current
+    var appLock by remember { mutableStateOf(AppPreferences.appLockEnabled(ctx)) }
+    val canProtect = remember {
+        BiometricManager.from(ctx).canAuthenticate(
+            BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        ) == BiometricManager.BIOMETRIC_SUCCESS
+    }
     val exportLauncher=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")){uri->
         if(uri!=null) runCatching{
             val root=JSONObject()
@@ -232,10 +238,14 @@ private fun shownMoney(c:Long,hidden:Boolean)=if(hidden)"R$ ••••••" 
         }}
         item{CardGlass{
             Text("SEGURANÇA",color=Lime,fontWeight=FontWeight.Bold)
-            Text("Protege a abertura do aplicativo usando biometria forte ou a credencial de bloqueio do Android. Não armazena PIN, senha ou credencial de cassino.",color=Muted,fontSize=12.sp)
+            Text(if(canProtect)"Protege a abertura do aplicativo usando biometria forte ou a credencial de bloqueio do Android. Não armazena PIN, senha ou credencial de cassino." else "Configure uma biometria ou credencial de bloqueio do dispositivo para habilitar esta proteção.",color=Muted,fontSize=12.sp)
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){
                 Column(Modifier.weight(1f)){Text("Proteção ao abrir",color=Color.White,fontWeight=FontWeight.Bold);Text("Exige autenticação sempre que o app voltar ao primeiro plano.",color=Muted,fontSize=12.sp)}
-                Switch(checked=AppPreferences.appLockEnabled(ctx),onCheckedChange={AppPreferences.setAppLockEnabled(ctx,it)})
+                Switch(
+                    checked=appLock,
+                    enabled=canProtect,
+                    onCheckedChange={appLock=it;AppPreferences.setAppLockEnabled(ctx,it)}
+                )
             }
         }}
         item{CardGlass{
