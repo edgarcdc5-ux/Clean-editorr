@@ -79,16 +79,53 @@ private fun money(c:Long)=String.format(Locale("pt","BR"),"R$ %,.2f",c/100.0)
 @Composable private fun Chart(){Canvas(Modifier.fillMaxWidth().height(75.dp)){val p=Path();p.moveTo(0f,size.height*.8f);p.lineTo(size.width*.2f,size.height*.62f);p.lineTo(size.width*.4f,size.height*.7f);p.lineTo(size.width*.58f,size.height*.38f);p.lineTo(size.width*.76f,size.height*.48f);p.lineTo(size.width,size.height*.12f);drawPath(p,Neon,style=Stroke(4f));drawCircle(Lime,5f,Offset(size.width,size.height*.12f))}}
 
 @Composable private fun NewSession(slots:List<SlotEntity>,ctx:android.content.Context,vm:CasinoProsViewModel,back:()->Unit,started:()->Unit){
- val apps=ctx.packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER),PackageManager.MATCH_ALL).distinctBy{it.activityInfo.packageName}.sortedBy{it.loadLabel(ctx.packageManager).toString()}
- var app by remember{mutableStateOf(apps.firstOrNull())};var slot by remember{mutableStateOf(slots.firstOrNull())};var stop by remember{mutableLongStateOf(5000)};var target by remember{mutableLongStateOf(10000)}
+ val apps=remember{ctx.packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER),PackageManager.MATCH_ALL).distinctBy{it.activityInfo.packageName}.sortedBy{it.loadLabel(ctx.packageManager).toString()}}
+ var app by remember{mutableStateOf(apps.firstOrNull())}
+ var slot by remember{mutableStateOf(slots.firstOrNull())}
+ var appMenu by remember{mutableStateOf(false)}
+ var slotMenu by remember{mutableStateOf(false)}
+ var stop by remember{mutableLongStateOf(5000)}
+ var target by remember{mutableLongStateOf(10000)}
  LazyColumn(Modifier.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
   item{Header("Nova Sessão","Selecione cassino, slot e limites",back)}
-  item{CardGlass{Text("SELECIONAR CASSINO",color=Lime,fontWeight=FontWeight.Bold);Text(app?.loadLabel(ctx.packageManager)?.toString()?:"Nenhum app encontrado",color=Color.White,fontSize=18.sp);Text(app?.activityInfo?.packageName?:"",color=Muted,fontSize=10.sp)}}
-  item{CardGlass{Text("SELECIONAR SLOT",color=Lime,fontWeight=FontWeight.Bold);Text(slot?.name?:"Nenhum slot cadastrado",color=Color.White,fontSize=18.sp);Text(slot?.provider?:"Cadastre na aba Slots",color=Muted)}}
+  item{
+   CardGlass{
+    Text("SELECIONAR CASSINO",color=Lime,fontWeight=FontWeight.Bold)
+    Spacer(Modifier.height(8.dp))
+    Box{
+     OutlinedButton({appMenu=true},Modifier.fillMaxWidth()){
+      Text(app?.loadLabel(ctx.packageManager)?.toString()?:"Nenhum app encontrado",color=Color.White,modifier=Modifier.weight(1f))
+      Icon(Icons.Default.ArrowDropDown,null,tint=Lime)
+     }
+     DropdownMenu(expanded=appMenu,onDismissRequest={appMenu=false}){
+      apps.take(30).forEach{x->DropdownMenuItem(text={Text(x.loadLabel(ctx.packageManager).toString())},onClick={app=x;appMenu=false})}
+     }
+    }
+    Text(app?.activityInfo?.packageName?:"",color=Muted,fontSize=10.sp)
+   }
+  }
+  item{
+   CardGlass{
+    Text("SELECIONAR SLOT",color=Lime,fontWeight=FontWeight.Bold)
+    Spacer(Modifier.height(8.dp))
+    Box{
+     OutlinedButton({slotMenu=true},Modifier.fillMaxWidth()){
+      Text(slot?.name?:"Nenhum slot cadastrado",color=Color.White,modifier=Modifier.weight(1f))
+      Icon(Icons.Default.ArrowDropDown,null,tint=Lime)
+     }
+     DropdownMenu(expanded=slotMenu,onDismissRequest={slotMenu=false}){
+      slots.forEach{x->DropdownMenuItem(text={Text(x.name)},onClick={slot=x;slotMenu=false})}
+     }
+    }
+    Text(slot?.provider?.ifBlank{"Adicione seus slots na aba Slots"}?:"Adicione seus slots na aba Slots",color=Muted)
+   }
+  }
   item{Text("Limites da sessão",color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)}
   item{Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){Metric("STOP LOSS",money(stop),Modifier.weight(1f));Metric("META",money(target),Modifier.weight(1f))}}
   item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){OutlinedButton({stop=(stop-1000).coerceAtLeast(1000)},Modifier.weight(1f)){Text("- Stop")};OutlinedButton({target+=1000},Modifier.weight(1f)){Text("+ Meta")}}}
-  item{Button({vm.startSession(app?.loadLabel(ctx.packageManager)?.toString()?:"",app?.activityInfo?.packageName?:"",slot?.name?:"",stop,target);started()},Modifier.fillMaxWidth().height(58.dp),colors=ButtonDefaults.buttonColors(containerColor=Lime,contentColor=Navy)){Text("INICIAR SESSÃO",fontWeight=FontWeight.Bold)}}
+  item{Button({vm.startSession(app?.loadLabel(ctx.packageManager)?.toString()?:"",app?.activityInfo?.packageName?:"",slot?.name?:"",stop,target);started()},Modifier.fillMaxWidth().height(58.dp),colors=ButtonDefaults.buttonColors(containerColor=Lime,contentColor=Navy),enabled=app!=null){
+   Text("INICIAR SESSÃO",fontWeight=FontWeight.Bold)
+  }}
  }
 }
 @Composable private fun ActiveSession(s:SessionEntity,current:Long,vm:CasinoProsViewModel,result:()->Unit,back:()->Unit){
