@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.content.pm.PackageManager
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.os.Build
 import androidx.compose.runtime.getValue
@@ -82,7 +83,7 @@ private fun money(c:Long)=String.format(Locale("pt","BR"),"R$ %,.2f",c/100.0)
   Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Navy,Color(0xFF111A38))))){
    when(page){
     "new"->NewSession(slots,ctx,vm,{page="home"},{page="active"})
-    "active"->if(active!=null)ActiveSession(active,b?.currentCents?:0,vm,{page="result"},{page="home"})else{page="home"}
+    "active"->if(active!=null)ActiveSession(active,b?.currentCents?:0,vm,ctx,{page="result"},{page="home"})else{page="home"}
     "result"->if(active!=null)Result(active,vm,{page="active"})else{page="home"}
     else->Scaffold(containerColor=Color.Transparent,bottomBar={
      NavigationBar(containerColor=Color(0xDD0A1228)){navItems(tab){tab=it}}
@@ -117,7 +118,7 @@ private fun money(c:Long)=String.format(Locale("pt","BR"),"R$ %,.2f",c/100.0)
 @Composable private fun Chart(values:List<Long> = emptyList()){Canvas(Modifier.fillMaxWidth().height(75.dp)){if(values.isEmpty()){drawLine(Muted,Offset(0f,size.height/2),Offset(size.width,size.height/2),2f)}else{val min=values.minOrNull()?:0L;val max=values.maxOrNull()?:1L;val range=(max-min).coerceAtLeast(1L);val p=Path();values.forEachIndexed{i,v->{val x=if(values.size==1)size.width/2 else size.width*i/(values.size-1).toFloat();val y=size.height-(size.height*((v-min).toFloat()/range));if(i==0)p.moveTo(x,y)else p.lineTo(x,y);drawCircle(if(v>=0)Neon else Loss,4f,Offset(x,y))}};drawPath(p,Neon,style=Stroke(4f))}}}
 
 @Composable private fun NewSession(slots:List<SlotEntity>,ctx:android.content.Context,vm:CasinoProsViewModel,back:()->Unit,started:()->Unit){
- val apps=remember{ctx.packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER),PackageManager.MATCH_ALL).distinctBy{it.activityInfo.packageName}.sortedBy{it.loadLabel(ctx.packageManager).toString()}}
+ val apps=remember{ctx.packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER),PackageManager.MATCH_ALL).filter{it.activityInfo.packageName!=ctx.packageName && (it.activityInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM)==0}.distinctBy{it.activityInfo.packageName}.sortedBy{it.loadLabel(ctx.packageManager).toString()}}
  var app by remember{mutableStateOf(apps.firstOrNull())}
  var slot by remember{mutableStateOf(slots.firstOrNull())}
  var appMenu by remember{mutableStateOf(false)}
@@ -166,7 +167,7 @@ private fun money(c:Long)=String.format(Locale("pt","BR"),"R$ %,.2f",c/100.0)
   }}
  }
 }
-@Composable private fun ActiveSession(s:SessionEntity,current:Long,vm:CasinoProsViewModel,result:()->Unit,back:()->Unit){
+@Composable private fun ActiveSession(s:SessionEntity,current:Long,vm:CasinoProsViewModel,ctx:android.content.Context,result:()->Unit,back:()->Unit){
  var now by remember{mutableLongStateOf(System.currentTimeMillis())}
  LaunchedEffect(s.id){while(true){now=System.currentTimeMillis();delay(1000)}}
  val profit=current-s.startingCents
@@ -175,6 +176,7 @@ private fun money(c:Long)=String.format(Locale("pt","BR"),"R$ %,.2f",c/100.0)
  LazyColumn(Modifier.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
   item{Header("Sessão Ativa",s.casinoName+" • "+s.slotName,back)}
   item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text("● SESSÃO ATIVA",color=Neon,fontWeight=FontWeight.Bold);Text(elapsedText,color=Color.White,fontWeight=FontWeight.Bold)}}
+  item{if(s.casinoPackage.isNotBlank())Button({ctx.packageManager.getLaunchIntentForPackage(s.casinoPackage)?.let{ctx.startActivity(it)}},Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Glass2)){Text("ABRIR CASSINO",color=Neon,fontWeight=FontWeight.Bold)}}
   item{CardGlass(Modifier.fillMaxWidth()){Text("LUCRO ATUAL",color=Muted);Text((if(profit>=0)"+" else "-")+money(kotlin.math.abs(profit)),color=if(profit>=0)Neon else Loss,fontSize=42.sp,fontWeight=FontWeight.ExtraBold);Chart()}}
   item{CardGlass{Text("LIMITES",color=Muted);Text("Stop Loss: "+money(s.stopLossCents),color=Loss);Text("Meta: "+money(s.targetCents),color=Neon);Spacer(Modifier.height(8.dp));LinearProgressIndicator(progress={((kotlin.math.abs(profit)).toFloat()/s.targetCents.coerceAtLeast(1)).coerceIn(0f,1f)},Modifier.fillMaxWidth(),color=if(profit>=0)Neon else Loss,trackColor=Glass2)}}
   item{Text("Registrar resultado",color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)}
