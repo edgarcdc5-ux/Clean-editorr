@@ -9,10 +9,14 @@ import android.content.pm.PackageManager
 import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.os.Build
+import android.view.Window
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
@@ -50,10 +54,70 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
-class MainActivity:ComponentActivity(){
+class MainActivity:FragmentActivity(){
  private var shortcutDestination by mutableStateOf<String?>(null)
- override fun onCreate(b:Bundle?){super.onCreate(b);shortcutDestination=intent.getStringExtra("destination");setContent{CasinoPros(initialDestination=shortcutDestination)}}
- override fun onNewIntent(intent:Intent){super.onNewIntent(intent);setIntent(intent);shortcutDestination=intent.getStringExtra("destination")}
+ private var unlocked by mutableStateOf(true)
+ private var promptShowing=false
+ private var resumed=false
+ override fun onCreate(b:Bundle?){
+  super.onCreate(b)
+  shortcutDestination=intent.getStringExtra("destination")
+  unlocked=!AppPreferences.appLockEnabled(this)
+  setContent{
+   if(unlocked) CasinoPros(initialDestination=shortcutDestination)
+   else LockedScreen({requestUnlock()})
+  }
+  window.decorView.post { if(!unlocked) requestUnlock() }
+ }
+ override fun onResume(){
+  super.onResume()
+  resumed=true
+  if(AppPreferences.appLockEnabled(this) && !unlocked) window.decorView.post { requestUnlock() }
+ }
+ override fun onPause(){
+  super.onPause()
+  resumed=false
+  if(AppPreferences.appLockEnabled(this)) unlocked=false
+ }
+ override fun onNewIntent(intent:Intent){
+  super.onNewIntent(intent);setIntent(intent);shortcutDestination=intent.getStringExtra("destination")
+ }
+ private fun requestUnlock(){
+  if(!resumed || unlocked || promptShowing || !AppPreferences.appLockEnabled(this)) return
+  val authenticators=BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+  val manager=BiometricManager.from(this)
+  if(manager.canAuthenticate(authenticators)!=BiometricManager.BIOMETRIC_SUCCESS){
+   // If the device cannot provide the configured authentication method, keep the app locked.
+   return
+  }
+  promptShowing=true
+  val executor=ContextCompat.getMainExecutor(this)
+  val prompt=BiometricPrompt(this,executor,object:BiometricPrompt.AuthenticationCallback(){
+   override fun onAuthenticationSucceeded(result:BiometricPrompt.AuthenticationResult){promptShowing=false;unlocked=true}
+   override fun onAuthenticationError(errorCode:Int,errString:CharSequence){promptShowing=false}
+   override fun onAuthenticationFailed(){promptShowing=true}
+  })
+  val info=BiometricPrompt.PromptInfo.Builder()
+   .setTitle("Desbloquear Cassino Pros")
+   .setSubtitle("Confirme sua identidade para acessar sua banca")
+   .setAllowedAuthenticators(authenticators)
+   .build()
+  prompt.authenticate(info)
+ }
+}
+@Composable private fun LockedScreen(unlock:()->Unit){
+ Box(Modifier.fillMaxSize().background(Navy),contentAlignment=androidx.compose.ui.Alignment.Center){
+  CardGlass(Modifier.fillMaxWidth().padding(24.dp)){
+   Icon(Icons.Default.Lock,null,tint=Lime,modifier=Modifier.size(48.dp))
+   Spacer(Modifier.height(12.dp))
+   Text("Aplicativo protegido",color=Color.White,fontSize=24.sp,fontWeight=FontWeight.Bold)
+   Text("Confirme sua biometria ou credencial do dispositivo para continuar.",color=Muted)
+   Spacer(Modifier.height(16.dp))
+   Button(unlock,Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Lime,contentColor=Navy)){
+    Text("DESBLOQUEAR",fontWeight=FontWeight.Bold)
+   }
+  }
+ }
 }
 private val Navy=Color(0xFF0A1228);private val Glass=Color(0x12FFFFFF);private val Glass2=Color(0x20FFFFFF)
 private val Neon=Color(0xFF00FF88);private val Lime=Color(0xFFB4FF39);private val Loss=Color(0xFFFF5A5A);private val Muted=Color(0xFF9BA5BD)
@@ -164,6 +228,14 @@ private fun shownMoney(c:Long,hidden:Boolean)=if(hidden)"R$ ••••••" 
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){
                 Column(Modifier.weight(1f)){Text("Ocultar valores",color=Color.White,fontWeight=FontWeight.Bold);Text("Esconde valores monetários nas telas de banca, histórico e estatísticas.",color=Muted,fontSize=12.sp)}
                 Switch(checked=hideValues,onCheckedChange=setHide)
+            }
+        }}
+        item{CardGlass{
+            Text("SEGURANÇA",color=Lime,fontWeight=FontWeight.Bold)
+            Text("Protege a abertura do aplicativo usando biometria forte ou a credencial de bloqueio do Android. Não armazena PIN, senha ou credencial de cassino.",color=Muted,fontSize=12.sp)
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){
+                Column(Modifier.weight(1f)){Text("Proteção ao abrir",color=Color.White,fontWeight=FontWeight.Bold);Text("Exige autenticação sempre que o app voltar ao primeiro plano.",color=Muted,fontSize=12.sp)}
+                Switch(checked=AppPreferences.appLockEnabled(ctx),onCheckedChange={AppPreferences.setAppLockEnabled(ctx,it)})
             }
         }}
         item{CardGlass{
