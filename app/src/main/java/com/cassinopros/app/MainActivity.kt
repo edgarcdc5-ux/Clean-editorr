@@ -1,10 +1,12 @@
 package com.cassinopros.app
 
+import android.Manifest
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Build
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -59,6 +61,12 @@ private fun money(c:Long)=String.format(Locale("pt","BR"),"R$ %,.2f",c/100.0)
  var page by remember{mutableStateOf(if(initialDestination=="new")"new" else "home")}
  val active=sessions.firstOrNull{it.status=="ACTIVE"}
  val ctx=LocalContext.current
+ val notificationPermissionLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){}
+ LaunchedEffect(Unit){
+  if(Build.VERSION.SDK_INT>=33 && ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED){
+   notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+  }
+ }
  LaunchedEffect(initialDestination){
   when(initialDestination){
    "new"->{page="new"}
