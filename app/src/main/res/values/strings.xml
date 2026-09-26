@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Cassino Pros</string>
+    <string name="shortcut_new_short">Nova sessão</string>
+    <string name="shortcut_new_long">Iniciar nova sessão</string>
+    <string name="shortcut_bankroll_short">Minha banca</string>
+    <string name="shortcut_bankroll_long">Abrir minha banca</string>
+    <string name="shortcut_history_short">Histórico</string>
+    <string name="shortcut_history_long">Abrir histórico</string>
+    <string name="shortcut_stats_short">Estatísticas</string>
+    <string name="shortcut_stats_long">Abrir estatísticas</string>
+</resources>
