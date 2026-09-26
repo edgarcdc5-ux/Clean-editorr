@@ -3,6 +3,9 @@ package com.cassinopros.app
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
@@ -34,7 +37,9 @@ import java.util.Date
 import kotlinx.coroutines.delay
 
 class MainActivity:ComponentActivity(){
- override fun onCreate(b:Bundle?){super.onCreate(b);setContent{CasinoPros()}}
+ private var shortcutDestination by mutableStateOf<String?>(null)
+ override fun onCreate(b:Bundle?){super.onCreate(b);shortcutDestination=intent.getStringExtra("destination");setContent{CasinoPros(initialDestination=shortcutDestination)}}
+ override fun onNewIntent(intent:Intent){super.onNewIntent(intent);setIntent(intent);shortcutDestination=intent.getStringExtra("destination")}
 }
 private val Navy=Color(0xFF0A1228);private val Glass=Color(0x12FFFFFF);private val Glass2=Color(0x20FFFFFF)
 private val Neon=Color(0xFF00FF88);private val Lime=Color(0xFFB4FF39);private val Loss=Color(0xFFFF5A5A);private val Muted=Color(0xFF9BA5BD)
