@@ -171,14 +171,16 @@ private fun money(c:Long)=String.format(Locale("pt","BR"),"R$ %,.2f",c/100.0)
  var now by remember{mutableLongStateOf(System.currentTimeMillis())}
  LaunchedEffect(s.id){while(true){now=System.currentTimeMillis();delay(1000)}}
  val profit=current-s.startingCents
+ var points by remember(s.id){mutableStateOf(listOf(0L))}
+ LaunchedEffect(s.id,current){points=(points+profit).takeLast(12)}
  val elapsed=((now-s.startedAt).coerceAtLeast(0))/1000
  val elapsedText=String.format(Locale.US,"%02d:%02d:%02d",elapsed/3600,(elapsed%3600)/60,elapsed%60)
  LazyColumn(Modifier.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
   item{Header("Sessão Ativa",s.casinoName+" • "+s.slotName,back)}
   item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text("● SESSÃO ATIVA",color=Neon,fontWeight=FontWeight.Bold);Text(elapsedText,color=Color.White,fontWeight=FontWeight.Bold)}}
   item{if(s.casinoPackage.isNotBlank())Button({ctx.packageManager.getLaunchIntentForPackage(s.casinoPackage)?.let{ctx.startActivity(it)}},Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Glass2)){Text("ABRIR CASSINO",color=Neon,fontWeight=FontWeight.Bold)}}
-  item{CardGlass(Modifier.fillMaxWidth()){Text("LUCRO ATUAL",color=Muted);Text((if(profit>=0)"+" else "-")+money(kotlin.math.abs(profit)),color=if(profit>=0)Neon else Loss,fontSize=42.sp,fontWeight=FontWeight.ExtraBold);Chart()}}
-  item{CardGlass{Text("LIMITES",color=Muted);Text("Stop Loss: "+money(s.stopLossCents),color=Loss);Text("Meta: "+money(s.targetCents),color=Neon);Spacer(Modifier.height(8.dp));LinearProgressIndicator(progress={((kotlin.math.abs(profit)).toFloat()/s.targetCents.coerceAtLeast(1)).coerceIn(0f,1f)},Modifier.fillMaxWidth(),color=if(profit>=0)Neon else Loss,trackColor=Glass2)}}
+  item{CardGlass(Modifier.fillMaxWidth()){Text("LUCRO ATUAL",color=Muted);Text((if(profit>=0)"+" else "-")+money(kotlin.math.abs(profit)),color=if(profit>=0)Neon else Loss,fontSize=42.sp,fontWeight=FontWeight.ExtraBold);Chart(points)}}
+  item{CardGlass{val limit=if(profit>=0)s.targetCents.coerceAtLeast(1) else s.stopLossCents.coerceAtLeast(1);val pct=(kotlin.math.abs(profit).toFloat()/limit).coerceIn(0f,1f);Text("LIMITES",color=Muted);Text("Stop Loss: "+money(s.stopLossCents),color=Loss);Text("Meta: "+money(s.targetCents),color=Neon);Spacer(Modifier.height(8.dp));Text((if(profit>=0)"Meta: " else "Stop Loss: ")+String.format(Locale.US,"%.0f%%",pct*100),color=Color.White,fontSize=12.sp);LinearProgressIndicator(progress={pct},Modifier.fillMaxWidth(),color=if(profit>=0)Neon else Loss,trackColor=Glass2)}}
   item{Text("Registrar resultado",color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)}
   item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Quick("+ R$ 10",Neon){vm.registerResult(1000)};Quick("+ R$ 20",Neon){vm.registerResult(2000)};Quick("+ R$ 50",Neon){vm.registerResult(5000)}}}
   item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Quick("- R$ 10",Loss){vm.registerResult(-1000)};Quick("- R$ 20",Loss){vm.registerResult(-2000)};Quick("- R$ 50",Loss){vm.registerResult(-5000)}}}
