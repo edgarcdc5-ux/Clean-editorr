@@ -45,6 +45,8 @@ class CasinoProsViewModel(app:Application):AndroidViewModel(app){
         val reserve=(total*percent.coerceIn(0,100))/100
         db.bankrollDao().save(b.copy(currentCents=total-reserve,reserveCents=reserve,updatedAt=System.currentTimeMillis()))
     }
+    fun deleteSlot(slot:SlotEntity)=viewModelScope.launch{db.slotDao().delete(slot)}
+    fun updateSlot(slot:SlotEntity)=viewModelScope.launch{db.slotDao().update(slot)}
     fun addSlot(name:String,provider:String,casino:String)=viewModelScope.launch{
         if(name.isNotBlank())db.slotDao().insert(SlotEntity(name=name.trim(),provider=provider.trim(),casinoName=casino.trim()))
     }
