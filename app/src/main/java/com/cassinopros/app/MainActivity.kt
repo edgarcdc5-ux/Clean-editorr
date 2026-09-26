@@ -29,6 +29,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cassinopros.app.data.SessionEntity
 import com.cassinopros.app.data.SlotEntity
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 class MainActivity:ComponentActivity(){
  override fun onCreate(b:Bundle?){super.onCreate(b);setContent{CasinoPros()}}
@@ -101,7 +102,7 @@ private fun money(c:Long)=String.format(Locale("pt","BR"),"R$ %,.2f",c/100.0)
       apps.take(30).forEach{x->DropdownMenuItem(text={Text(x.loadLabel(ctx.packageManager).toString())},onClick={app=x;appMenu=false})}
      }
     }
-    Text(app?.activityInfo?.packageName?:"",color=Muted,fontSize=10.sp)
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(app?.activityInfo?.packageName?:"",color=Muted,fontSize=10.sp);if(app!=null)TextButton({ctx.startActivity(ctx.packageManager.getLaunchIntentForPackage(app!!.activityInfo.packageName))}){Text("ABRIR",color=Neon)}}
    }
   }
   item{
@@ -129,15 +130,20 @@ private fun money(c:Long)=String.format(Locale("pt","BR"),"R$ %,.2f",c/100.0)
  }
 }
 @Composable private fun ActiveSession(s:SessionEntity,current:Long,vm:CasinoProsViewModel,result:()->Unit,back:()->Unit){
+ var now by remember{mutableLongStateOf(System.currentTimeMillis())}
+ LaunchedEffect(s.id){while(true){now=System.currentTimeMillis();delay(1000)}}
  val profit=current-s.startingCents
+ val elapsed=((now-s.startedAt).coerceAtLeast(0))/1000
+ val elapsedText=String.format(Locale.US,"%02d:%02d:%02d",elapsed/3600,(elapsed%3600)/60,elapsed%60)
  LazyColumn(Modifier.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
   item{Header("Sessão Ativa",s.casinoName+" • "+s.slotName,back)}
-  item{Text("● SESSÃO ATIVA     AO VIVO",color=Neon,fontWeight=FontWeight.Bold)}
+  item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text("● SESSÃO ATIVA",color=Neon,fontWeight=FontWeight.Bold);Text(elapsedText,color=Color.White,fontWeight=FontWeight.Bold)}}
   item{CardGlass(Modifier.fillMaxWidth()){Text("LUCRO ATUAL",color=Muted);Text((if(profit>=0)"+" else "-")+money(kotlin.math.abs(profit)),color=if(profit>=0)Neon else Loss,fontSize=42.sp,fontWeight=FontWeight.ExtraBold);Chart()}}
   item{CardGlass{Text("LIMITES",color=Muted);Text("Stop Loss: "+money(s.stopLossCents),color=Loss);Text("Meta: "+money(s.targetCents),color=Neon);Spacer(Modifier.height(8.dp));LinearProgressIndicator(progress={((kotlin.math.abs(profit)).toFloat()/s.targetCents.coerceAtLeast(1)).coerceIn(0f,1f)},Modifier.fillMaxWidth(),color=if(profit>=0)Neon else Loss,trackColor=Glass2)}}
   item{Text("Registrar resultado",color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)}
   item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Quick("+ R$ 10",Neon){vm.registerResult(1000)};Quick("+ R$ 20",Neon){vm.registerResult(2000)};Quick("+ R$ 50",Neon){vm.registerResult(5000)}}}
   item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Quick("- R$ 10",Loss){vm.registerResult(-1000)};Quick("- R$ 20",Loss){vm.registerResult(-2000)};Quick("- R$ 50",Loss){vm.registerResult(-5000)}}}
+  item{Text("Stop Loss: "+money(s.stopLossCents)+" • Meta: "+money(s.targetCents),color=Muted,fontSize=12.sp)}
   item{Button(result,Modifier.fillMaxWidth().height(54.dp)){Text("REGISTRAR RESULTADO")}}
   item{Button({vm.finishLatest();back()},Modifier.fillMaxWidth().height(54.dp),colors=ButtonDefaults.buttonColors(containerColor=Lime,contentColor=Navy)){Text("ENCERRAR SESSÃO",fontWeight=FontWeight.Bold)}}
  }
