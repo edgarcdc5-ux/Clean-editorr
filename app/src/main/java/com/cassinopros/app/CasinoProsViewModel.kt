@@ -32,6 +32,8 @@ class CasinoProsViewModel(app:Application):AndroidViewModel(app){
         db.sessionDao().register(active.id,if(cents<0)-cents else cents,if(cents>0)cents else 0,result)
         if(result >= active.targetCents || result <= -active.stopLossCents){
             db.sessionDao().finish(active.id,next,result,System.currentTimeMillis())
+            val title = if(result >= active.targetCents) "Meta da sessão atingida" else "Stop Loss da sessão atingido"
+            SessionNotificationHelper.notifyLimit(getApplication(), active.id, title, result)
         }
     }
     fun finishLatest()=viewModelScope.launch{
