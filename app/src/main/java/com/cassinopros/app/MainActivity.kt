@@ -1,14 +1,19 @@
 package com.cassinopros.app
 
 import android.content.Intent
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,6 +29,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -34,7 +40,9 @@ import com.cassinopros.app.data.SlotEntity
 import java.util.Locale
 import java.text.SimpleDateFormat
 import java.util.Date
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 class MainActivity:ComponentActivity(){
  private var shortcutDestination by mutableStateOf<String?>(null)
@@ -187,15 +195,62 @@ private fun money(c:Long)=String.format(Locale("pt","BR"),"R$ %,.2f",c/100.0)
  val total=current+reserve;val op=if(total==0L)0 else (current*100/total).toInt()
  LazyColumn(m.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){item{Text("Minha Banca",color=Color.White,fontSize=28.sp,fontWeight=FontWeight.Bold);Text("Operacional e reserva",color=Muted)};item{CardGlass{Text("BANCA TOTAL",color=Muted);Text(money(total),color=Color.White,fontSize=40.sp,fontWeight=FontWeight.ExtraBold);Text("Atualizado agora",color=Neon)}};item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Metric("OPERACIONAL",money(current),Modifier.weight(1f));Metric("RESERVA",money(reserve),Modifier.weight(1f))}};item{LinearProgressIndicator(progress={op/100f},Modifier.fillMaxWidth(),color=Neon,trackColor=Glass2)};item{Text("Distribuição: "+op+"% operacional • "+(100-op)+"% reserva",color=Muted)};item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){OutlinedButton({vm.setReservePercent(10)},Modifier.weight(1f)){Text("10%")};OutlinedButton({vm.setReservePercent(30)},Modifier.weight(1f)){Text("30%")};OutlinedButton({vm.setReservePercent(50)},Modifier.weight(1f)){Text("50%")}}};item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Button({vm.quickAdjust(5000)},Modifier.weight(1f)){Text("+ R$ 50")};OutlinedButton({vm.quickAdjust(-5000)},Modifier.weight(1f)){Text("- R$ 50")}}}}
 }
+@Composable private fun SlotCover(uri:String?,m:Modifier=Modifier.size(64.dp)){
+ val ctx=LocalContext.current
+ val bitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(null,uri){
+  value=withContext(Dispatchers.IO){
+   uri?.let{u->runCatching{ctx.contentResolver.openInputStream(Uri.parse(u))?.use{stream->BitmapFactory.decodeStream(stream)?.asImageBitmap()}}.getOrNull()}
+  }
+ }
+ Surface(m,shape=RoundedCornerShape(14.dp),color=Glass2){
+  if(bitmap!=null)Image(bitmap=bitmap!!,contentDescription="Capa do slot",modifier=Modifier.fillMaxSize(),contentScale=androidx.compose.ui.layout.ContentScale.Crop)
+  else Box(Modifier.fillMaxSize(),contentAlignment=androidx.compose.ui.Alignment.Center){Icon(Icons.Default.Casino,null,tint=Lime)}
+ }
+}
+
 @Composable private fun Slots(m:Modifier,slots:List<SlotEntity>,vm:CasinoProsViewModel){
- var n by remember{mutableStateOf("")};var p by remember{mutableStateOf("")};var c by remember{mutableStateOf("")};var stake by remember{mutableStateOf("1,00")};var editing by remember{mutableStateOf<SlotEntity?>(null)}
+ var n by remember{mutableStateOf("")}
+ var p by remember{mutableStateOf("")}
+ var c by remember{mutableStateOf("")}
+ var stake by remember{mutableStateOf("1,00")}
+ var imageUri by remember{mutableStateOf<String?>(null)}
+ var editing by remember{mutableStateOf<SlotEntity?>(null)}
+ val ctx=LocalContext.current
+ val picker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->
+  if(uri!=null){
+   runCatching{ctx.contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)}
+   imageUri=uri.toString()
+  }
+ }
  LazyColumn(m.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   item{Text("Meus Slots",color=Color.White,fontSize=28.sp,fontWeight=FontWeight.Bold);Text("Biblioteca pessoal",color=Muted)}
-  item{CardGlass{Text("NOVO SLOT",color=Lime,fontWeight=FontWeight.Bold);Spacer(Modifier.height(8.dp));OutlinedTextField(n,{n=it},Modifier.fillMaxWidth(),label={Text("Nome do slot")});Spacer(Modifier.height(6.dp));Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){OutlinedTextField(p,{p=it},Modifier.weight(1f),label={Text("Provider")});OutlinedTextField(c,{c=it},Modifier.weight(1f),label={Text("Cassino")})};Spacer(Modifier.height(6.dp));OutlinedTextField(stake,{stake=it},Modifier.fillMaxWidth(),label={Text("Stake padrão (R$)")});Spacer(Modifier.height(8.dp));Button({vm.addSlot(n,p,c,((stake.replace(",","." ).toDoubleOrNull()?:1.0)*100).toLong());n="";p="";c="";stake="1,00"},Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Lime,contentColor=Navy)){Text("+ ADICIONAR SLOT")}}}
- items(slots){x->CardGlass(Modifier.fillMaxWidth()){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Column(Modifier.weight(1f)){Text(x.name,color=Color.White,fontSize=18.sp,fontWeight=FontWeight.Bold);Text(x.provider.ifBlank{"Provider não informado"}+" • "+x.casinoName.ifBlank{"Cassino não informado"},color=Muted);Text("Stake padrão: "+money(x.defaultStakeCents),color=Neon,fontSize=12.sp)};Column{TextButton({editing=x}){Text("EDITAR",color=Neon)};TextButton({vm.deleteSlot(x)}){Text("EXCLUIR",color=Loss)}}}}}
+  item{CardGlass{
+   Text("NOVO SLOT",color=Lime,fontWeight=FontWeight.Bold)
+   Spacer(Modifier.height(8.dp))
+   Row(horizontalArrangement=Arrangement.spacedBy(12.dp),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){
+    SlotCover(imageUri,Modifier.size(72.dp))
+    Column(Modifier.weight(1f)){Text(if(imageUri==null)"Sem capa selecionada" else "Capa selecionada",color=Muted);TextButton({picker.launch(arrayOf("image/*"))}){Text("SELECIONAR CAPA",color=Neon)}}
+   }
+   OutlinedTextField(n,{n=it},Modifier.fillMaxWidth(),label={Text("Nome do slot")})
+   Spacer(Modifier.height(6.dp))
+   Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){OutlinedTextField(p,{p=it},Modifier.weight(1f),label={Text("Provider")});OutlinedTextField(c,{c=it},Modifier.weight(1f),label={Text("Cassino")})}
+   Spacer(Modifier.height(6.dp))
+   OutlinedTextField(stake,{stake=it},Modifier.fillMaxWidth(),label={Text("Stake padrão (R$)")})
+   Spacer(Modifier.height(8.dp))
+   Button({vm.addSlot(n,p,c,((stake.replace(",","." ).toDoubleOrNull()?:1.0)*100).toLong(),imageUri);n="";p="";c="";stake="1,00";imageUri=null},Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Lime,contentColor=Navy)){Text("+ ADICIONAR SLOT")}
+  }}
+  items(slots){x->CardGlass(Modifier.fillMaxWidth()){
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){
+    SlotCover(x.imageUri,Modifier.size(64.dp))
+    Spacer(Modifier.width(12.dp))
+    Column(Modifier.weight(1f)){Text(x.name,color=Color.White,fontSize=18.sp,fontWeight=FontWeight.Bold);Text(x.provider.ifBlank{"Provider não informado"}+" • "+x.casinoName.ifBlank{"Cassino não informado"},color=Muted);Text("Stake padrão: "+money(x.defaultStakeCents),color=Neon,fontSize=12.sp)}
+    Column{TextButton({editing=x}){Text("EDITAR",color=Neon)};TextButton({vm.deleteSlot(x)}){Text("EXCLUIR",color=Loss)}}
+   }
+  }}
  }
- if(editing!=null){var e by remember(editing){mutableStateOf(editing!!)};AlertDialog(onDismissRequest={editing=null},confirmButton={TextButton({vm.updateSlot(e);editing=null}){Text("SALVAR",color=Neon)}},dismissButton={TextButton({editing=null}){Text("CANCELAR")}},title={Text("Editar slot")},text={Column{OutlinedTextField(e.name,{e=e.copy(name=it)},label={Text("Nome")});OutlinedTextField(e.provider,{e=e.copy(provider=it)},label={Text("Provider")});OutlinedTextField(e.casinoName,{e=e.copy(casinoName=it)},label={Text("Cassino")});OutlinedTextField((e.defaultStakeCents/100.0).toString(),{v->e=e.copy(defaultStakeCents=((v.replace(",","." ).toDoubleOrNull()?:0.0)*100).toLong())},label={Text("Stake padrão")})}})}
-}@Composable private fun History(m:Modifier,s:List<SessionEntity>){
+ if(editing!=null){var e by remember(editing){mutableStateOf(editing!!)};AlertDialog(onDismissRequest={editing=null},confirmButton={TextButton({vm.updateSlot(e);editing=null}){Text("SALVAR",color=Neon)}},dismissButton={TextButton({editing=null}){Text("CANCELAR")}},title={Text("Editar slot")},text={Column{OutlinedTextField(e.name,{e=e.copy(name=it)},label={Text("Nome")});OutlinedTextField(e.provider,{e=e.copy(provider=it)},label={Text("Provider")});OutlinedTextField(e.casinoName,{e=e.copy(casinoName=it)},label={Text("Cassino")});OutlinedTextField((e.defaultStakeCents/100.0).toString(),{v->e=e.copy(defaultStakeCents=((v.replace(",","." ).toDoubleOrNull()?:0.0)*100).toLong())},label={Text("Stake padrão")});Text(if(e.imageUri==null)"Sem capa" else "Capa cadastrada",color=Muted,fontSize=12.sp)}})}
+ }
+@Composable private fun History(m:Modifier,s:List<SessionEntity>){
  var filter by remember{mutableStateOf("Todas")};var period by remember{mutableStateOf("Tudo")}
  val now=System.currentTimeMillis();val start=when(period){"Hoje"->now-86400000L;"7 dias"->now-7*86400000L;"30 dias"->now-30*86400000L;else->0L}
  val list=s.filter{it.startedAt>=start}.filter{filter=="Todas"||(filter=="Lucro"&&it.resultCents>0)||(filter=="Prejuízo"&&it.resultCents<0)}
