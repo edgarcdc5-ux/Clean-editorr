@@ -25,8 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -101,8 +99,16 @@ private fun money(c:Long)=String.format(Locale("pt","BR"),"R$ %,.2f",c/100.0)
  }
 }
 @Composable private fun navItems(tab:Int,set:(Int)->Unit){
- listOf(Icons.Default.Home to "Início",Icons.Default.AccountBalanceWallet to "Banca",Icons.Default.Casino to "Slots",Icons.Default.History to "Histórico",Icons.Default.BarChart to "Estatísticas").forEachIndexed{i,x->
-  NavigationBarItem(tab==i,{set(i)},icon={Icon(x.first,null)},label={Text(x.second)},colors=NavigationBarItemDefaults.colors(selectedIconColor=Neon,selectedTextColor=Neon,indicatorColor=Glass2,unselectedIconColor=Muted,unselectedTextColor=Muted))
+ val items=listOf(Icons.Default.Home to "Início",Icons.Default.AccountBalanceWallet to "Banca",Icons.Default.Casino to "Slots",Icons.Default.History to "Histórico",Icons.Default.BarChart to "Estatísticas")
+ Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly){
+  items.forEachIndexed{i,x->
+   TextButton({set(i)},Modifier.weight(1f)){
+    Column(horizontalAlignment=androidx.compose.ui.Alignment.CenterHorizontally){
+     Icon(x.first,null,tint=if(tab==i)Neon else Muted)
+     Text(x.second,color=if(tab==i)Neon else Muted,fontSize=10.sp)
+    }
+   }
+  }
  }
 }
 @Composable private fun CardGlass(m:Modifier=Modifier,body:@Composable ColumnScope.()->Unit)=Card(m,shape=RoundedCornerShape(18.dp),colors=CardDefaults.cardColors(containerColor=Glass)){Column(Modifier.padding(16.dp),content=body)}
