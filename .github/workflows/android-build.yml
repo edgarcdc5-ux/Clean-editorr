@@ -19,9 +19,14 @@ jobs:
           gradle-version: '8.10'
       - name: Assemble debug APK
         run: gradle --no-daemon assembleDebug
+      - name: Verify APK output
+        run: |
+          echo "APK files:"
+          find app/build/outputs/apk -type f -maxdepth 3 -print
+          test -f app/build/outputs/apk/debug/app-debug.apk
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: cassino-pros-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: cassino-pros-debug-apk-${{ github.run_number }}
+          path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
