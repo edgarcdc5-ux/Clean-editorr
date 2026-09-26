@@ -47,7 +47,7 @@ class CasinoProsViewModel(app:Application):AndroidViewModel(app){
     }
     fun deleteSlot(slot:SlotEntity)=viewModelScope.launch{db.slotDao().delete(slot)}
     fun updateSlot(slot:SlotEntity)=viewModelScope.launch{db.slotDao().update(slot)}
-    fun addSlot(name:String,provider:String,casino:String)=viewModelScope.launch{
-        if(name.isNotBlank())db.slotDao().insert(SlotEntity(name=name.trim(),provider=provider.trim(),casinoName=casino.trim()))
+    fun addSlot(name:String,provider:String,casino:String,stakeCents:Long=100)=viewModelScope.launch{
+        if(name.isNotBlank())db.slotDao().insert(SlotEntity(name=name.trim(),provider=provider.trim(),casinoName=casino.trim(),defaultStakeCents=stakeCents.coerceAtLeast(0)))
     }
 }
