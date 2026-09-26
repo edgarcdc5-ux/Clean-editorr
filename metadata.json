@@ -1,6 +1,0 @@
-{
-  "name": "CleanEditor",
-  "description": "Editor de textos limpo e produtivo com gerenciador de arquivos, lembretes e IA",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
