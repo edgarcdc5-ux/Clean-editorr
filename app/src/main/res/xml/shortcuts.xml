@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new_session"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut"
+        android:shortcutShortLabel="Nova sessão"
+        android:shortcutLongLabel="Iniciar nova sessão">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.cassinopros.app"
+            android:targetClass="com.cassinopros.app.MainActivity">
+            <extra android:name="destination" android:value="new" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="bankroll"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut"
+        android:shortcutShortLabel="Minha banca"
+        android:shortcutLongLabel="Abrir minha banca">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.cassinopros.app"
+            android:targetClass="com.cassinopros.app.MainActivity">
+            <extra android:name="destination" android:value="bankroll" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="history"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut"
+        android:shortcutShortLabel="Histórico"
+        android:shortcutLongLabel="Abrir histórico">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.cassinopros.app"
+            android:targetClass="com.cassinopros.app.MainActivity">
+            <extra android:name="destination" android:value="history" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="stats"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut"
+        android:shortcutShortLabel="Estatísticas"
+        android:shortcutLongLabel="Abrir estatísticas">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.cassinopros.app"
+            android:targetClass="com.cassinopros.app.MainActivity">
+            <extra android:name="destination" android:value="stats" />
+        </intent>
+    </shortcut>
+</shortcuts>
