@@ -187,9 +187,20 @@ private fun money(c:Long)=String.format(Locale("pt","BR"),"R$ %,.2f",c/100.0)
 }
 @Composable private fun Quick(t:String,c:Color,onClick:()->Unit)=Button(onClick,shape=RoundedCornerShape(14.dp),modifier=Modifier.weight(1f).height(50.dp),colors=ButtonDefaults.buttonColors(containerColor=Glass2)){Text(t,color=c,fontWeight=FontWeight.Bold)}
 @Composable private fun Result(s:SessionEntity,vm:CasinoProsViewModel,back:()->Unit){
+ var custom by remember{mutableStateOf("")}
+ val customCents=((custom.replace(",","." ).toDoubleOrNull()?:0.0)*100).toLong()
  LazyColumn(Modifier.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
   item{Header("Registrar Resultado","Adição rápida ao histórico",back)}
-  item{CardGlass{Text("RESULTADO DA SESSÃO",color=Lime,fontWeight=FontWeight.Bold);Text("Um toque atualiza a banca e o histórico.",color=Muted,fontSize=18.sp)}}
+  item{CardGlass{
+   Text("RESULTADO DA SESSÃO",color=Lime,fontWeight=FontWeight.Bold)
+   Text("Um toque atualiza a banca e o histórico.",color=Muted,fontSize=18.sp)
+   Spacer(Modifier.height(10.dp))
+   OutlinedTextField(custom,{custom=it},Modifier.fillMaxWidth(),label={Text("Valor personalizado (R$)")},placeholder={Text("Ex.: 125,50")})
+   Spacer(Modifier.height(8.dp))
+   Button({if(custom.isNotBlank() && customCents!=0L){vm.registerResult(customCents);back()}},Modifier.fillMaxWidth(),enabled=custom.isNotBlank() && customCents!=0L){
+    Text("SALVAR VALOR PERSONALIZADO")
+   }
+  }}
   listOf(1000L,2000L,5000L,10000L,-1000L,-2000L,-5000L,-10000L).chunked(2).forEach{row->
    item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){row.forEach{v->
     Button({vm.registerResult(v);back()},Modifier.weight(1f),colors=ButtonDefaults.buttonColors(containerColor=Glass2)){
