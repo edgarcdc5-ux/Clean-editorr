@@ -2,6 +2,7 @@ package com.cassinopros.app
 
 import android.Manifest
 import android.content.Intent
+import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.content.pm.PackageManager
@@ -43,6 +44,8 @@ import com.cassinopros.app.data.SlotEntity
 import java.util.Locale
 import java.text.SimpleDateFormat
 import java.util.Date
+import org.json.JSONArray
+import org.json.JSONObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -62,6 +65,7 @@ private fun money(c:Long)=String.format(Locale("pt","BR"),"R$ %,.2f",c/100.0)
  var page by remember{mutableStateOf(if(initialDestination=="new")"new" else "home")}
  val active=sessions.firstOrNull{it.status=="ACTIVE"}
  val ctx=LocalContext.current
+ var hideValues by remember{mutableStateOf(AppPreferences.hideValues(ctx))}
  val notificationPermissionLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()){}
  LaunchedEffect(Unit){
   if(Build.VERSION.SDK_INT>=33 && ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED){
@@ -85,10 +89,11 @@ private fun money(c:Long)=String.format(Locale("pt","BR"),"R$ %,.2f",c/100.0)
     "new"->NewSession(slots,ctx,vm,{page="home"},{page="active"})
     "active"->if(active!=null)ActiveSession(active,b?.currentCents?:0,vm,ctx,{page="result"},{page="home"})else{page="home"}
     "result"->if(active!=null)Result(active,vm,{page="active"})else{page="home"}
+    "settings"->SettingsPage(sessions,slots,b?.currentCents?:0,b?.initialCents?:0,hideValues,{hideValues=it;AppPreferences.setHideValues(ctx,it)},{page="home"})
     else->Scaffold(containerColor=Color.Transparent,bottomBar={
      NavigationBar(containerColor=Color(0xDD0A1228)){navItems(tab){tab=it}}
     }){p->when(tab){
-     0->Dashboard(Modifier.padding(p),b?.currentCents?:0,b?.initialCents?:0,sessions,active!=null){page=if(active!=null)"active" else "new"}
+     0->Dashboard(Modifier.padding(p),b?.currentCents?:0,b?.initialCents?:0,sessions,active!=null,hideValues,{page=if(active!=null)"active" else "new"},{page="settings"})
      1->Bankroll(Modifier.padding(p),b?.currentCents?:0,b?.reserveCents?:0,vm)
      2->Slots(Modifier.padding(p),slots,vm)
      3->History(Modifier.padding(p),sessions)
@@ -113,15 +118,67 @@ private fun money(c:Long)=String.format(Locale("pt","BR"),"R$ %,.2f",c/100.0)
 }
 @Composable private fun CardGlass(m:Modifier=Modifier,body:@Composable ColumnScope.()->Unit)=Card(m,shape=RoundedCornerShape(18.dp),colors=CardDefaults.cardColors(containerColor=Glass)){Column(Modifier.padding(16.dp),content=body)}
 @Composable private fun Header(t:String,s:String,back:()->Unit)=Row(Modifier.fillMaxWidth()){IconButton(back){Icon(Icons.Default.ArrowBack,null,tint=Color.White)};Column{Text(t,color=Color.White,fontSize=25.sp,fontWeight=FontWeight.Bold);Text(s,color=Muted,fontSize=13.sp)}}
-@Composable private fun Dashboard(m:Modifier,current:Long,initial:Long,s:List<SessionEntity>,active:Boolean,go:()->Unit){
+@Composable private fun Dashboard(m:Modifier,current:Long,initial:Long,s:List<SessionEntity>,active:Boolean,hideValues:Boolean,go:()->Unit,settings:()->Unit){
  val delta=current-initial
  LazyColumn(m.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
-  item{Text("Olá,",color=Muted);Text("Cassino Pros",color=Color.White,fontSize=28.sp,fontWeight=FontWeight.Bold)}
-  item{CardGlass(Modifier.fillMaxWidth()){Text("SALDO TOTAL",color=Muted,fontSize=12.sp);Text(money(current),color=Color.White,fontSize=39.sp,fontWeight=FontWeight.ExtraBold);Text((if(delta>=0)"↗ +" else "↘ -")+money(kotlin.math.abs(delta)),color=if(delta>=0)Neon else Loss);Chart(s.filter{it.status=="FINISHED"}.sortedBy{it.startedAt}.takeLast(7).map{it.resultCents})}}
+  item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Column{Text("Olá,",color=Muted);Text("Cassino Pros",color=Color.White,fontSize=28.sp,fontWeight=FontWeight.Bold)};IconButton(settings){Icon(Icons.Default.Settings,null,tint=Lime)}}}
+  item{CardGlass(Modifier.fillMaxWidth()){Text("SALDO TOTAL",color=Muted,fontSize=12.sp);Text(if(hideValues)"R$ ••••••" else money(current),color=Color.White,fontSize=39.sp,fontWeight=FontWeight.ExtraBold);Text(if(hideValues)"Valores ocultos" else (if(delta>=0)"↗ +" else "↘ -")+money(kotlin.math.abs(delta)),color=if(delta>=0)Neon else Loss);Chart(s.filter{it.status=="FINISHED"}.sortedBy{it.startedAt}.takeLast(7).map{it.resultCents})}}
   item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Metric("LUCRO",money(s.filter{it.status=="FINISHED"}.sumOf{it.resultCents}),Modifier.weight(1f));Metric("SESSÕES",s.size.toString(),Modifier.weight(1f));Metric("MELHOR",money(s.filter{it.status=="FINISHED"}.maxOfOrNull{it.resultCents}?:0),Modifier.weight(1f))}}
   item{Button(go,Modifier.fillMaxWidth().height(56.dp),shape=RoundedCornerShape(16.dp),colors=ButtonDefaults.buttonColors(containerColor=Lime,contentColor=Navy)){Text(if(active)"CONTINUAR SESSÃO" else "NOVA SESSÃO",fontWeight=FontWeight.Bold)}}
  }
 }
+@Composable private fun SettingsPage(
+    sessions:List<SessionEntity>, slots:List<SlotEntity>, current:Long, initial:Long,
+    hideValues:Boolean, setHide:(Boolean)->Unit, back:()->Unit
+){
+    val ctx=LocalContext.current
+    val exportLauncher=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")){uri->
+        if(uri!=null) runCatching{
+            val root=JSONObject()
+            root.put("app","Cassino Pros")
+            root.put("version","1.1.0")
+            root.put("exportedAt",System.currentTimeMillis())
+            root.put("bankroll",JSONObject().put("initialCents",initial).put("currentCents",current))
+            val sessionArray=JSONArray()
+            sessions.forEach{s->sessionArray.put(JSONObject().apply{
+                put("id",s.id);put("casinoName",s.casinoName);put("casinoPackage",s.casinoPackage);put("slotName",s.slotName)
+                put("startingCents",s.startingCents);put("endingCents",s.endingCents);put("wageredCents",s.wageredCents)
+                put("receivedCents",s.receivedCents);put("resultCents",s.resultCents);put("stopLossCents",s.stopLossCents)
+                put("targetCents",s.targetCents);put("stakeCents",s.stakeCents);put("startedAt",s.startedAt);put("endedAt",s.endedAt);put("status",s.status)
+            })}
+            root.put("sessions",sessionArray)
+            val slotArray=JSONArray()
+            slots.forEach{s->slotArray.put(JSONObject().apply{
+                put("id",s.id);put("name",s.name);put("provider",s.provider);put("casinoName",s.casinoName)
+                put("defaultStakeCents",s.defaultStakeCents);put("notes",s.notes);put("imageUri",s.imageUri)
+            })}
+            root.put("slots",slotArray)
+            ctx.contentResolver.openOutputStream(uri)?.use{it.write(root.toString(2).toByteArray(Charsets.UTF_8))}
+        }
+    }
+    LazyColumn(Modifier.fillMaxSize().padding(18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
+        item{Header("Configurações","Privacidade e backup local",back)}
+        item{CardGlass{
+            Text("PRIVACIDADE",color=Lime,fontWeight=FontWeight.Bold)
+            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){
+                Column(Modifier.weight(1f)){Text("Ocultar valores",color=Color.White,fontWeight=FontWeight.Bold);Text("Esconde valores monetários na tela inicial.",color=Muted,fontSize=12.sp)}
+                Switch(checked=hideValues,onCheckedChange=setHide)
+            }
+        }}
+        item{CardGlass{
+            Text("BACKUP",color=Lime,fontWeight=FontWeight.Bold)
+            Text("Exporta banca, sessões e biblioteca de slots para um arquivo JSON escolhido por você.",color=Muted)
+            Spacer(Modifier.height(10.dp))
+            Button({exportLauncher.launch("cassino-pros-backup.json")},Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Lime,contentColor=Navy)){Text("EXPORTAR BACKUP JSON",fontWeight=FontWeight.Bold)}
+        }}
+        item{CardGlass{
+            Text("DADOS LOCAIS",color=Lime,fontWeight=FontWeight.Bold)
+            Text(sessions.size.toString()+" sessões • "+slots.size.toString()+" slots",color=Color.White)
+            Text("Os dados permanecem no dispositivo; o backup só é criado quando você solicitar.",color=Muted,fontSize=12.sp)
+        }}
+    }
+}
+
 @Composable private fun Metric(t:String,v:String,m:Modifier)=CardGlass(m){Text(t,color=Muted,fontSize=10.sp);Text(v,color=Color.White,fontSize=16.sp,fontWeight=FontWeight.Bold)}
 @Composable private fun Chart(values:List<Long> = emptyList()){Canvas(Modifier.fillMaxWidth().height(75.dp)){if(values.isEmpty()){drawLine(Muted,Offset(0f,size.height/2),Offset(size.width,size.height/2),2f)}else{val min=values.minOrNull()?:0L;val max=values.maxOrNull()?:1L;val range=(max-min).coerceAtLeast(1L);val p=Path();values.forEachIndexed{i,v->{val x=if(values.size==1)size.width/2 else size.width*i/(values.size-1).toFloat();val y=size.height-(size.height*((v-min).toFloat()/range));if(i==0)p.moveTo(x,y)else p.lineTo(x,y);drawCircle(if(v>=0)Neon else Loss,4f,Offset(x,y))}};drawPath(p,Neon,style=Stroke(4f))}}}
 
